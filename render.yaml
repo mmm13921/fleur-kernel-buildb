@@ -9,8 +9,6 @@ services:
     dockerfilePath: ./Dockerfile
     healthCheckPath: /health
     envVars:
-      - key: PORT
-        value: "8000"
       - key: BUILDER_WORKFLOW_REF
         value: main
       - key: MCP_AUTH_TOKEN
