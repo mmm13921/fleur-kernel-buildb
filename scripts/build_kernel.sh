@@ -28,6 +28,8 @@ fi
 
 mkdir -p "$(dirname "$SRC_DIR")" "$ARTIFACT_DIR"
 git clone --depth=1 --branch "$SOURCE_REF" "$SOURCE_URL" "$SRC_DIR"
+git -C "$SRC_DIR" submodule sync --recursive
+git -C "$SRC_DIR" submodule update --init --depth=1 --recursive
 
 export PATH="$TOOLCHAIN_DIR/bin:$PATH"
 export ARCH=arm64
