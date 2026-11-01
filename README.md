@@ -78,3 +78,15 @@ No 2.2–2.6 GHz profile, increased voltage table, thermal bypass, or flashable 
 ## Safety and recovery
 
 Build artifacts are research outputs, not installation instructions. Before any later flashing stage, verify the exact ROM/vendor base, device variant, boot header, DTB placement, ramdisk handling and recovery path. Keep a known-good boot image available. Never disable hardware thermal emergency protection as part of an overclock experiment.
+
+
+## Deploy the MCP endpoint on Render
+
+1. In the [Render Dashboard](https://dashboard.render.com), choose **New → Blueprint** and connect this repository on branch `main`.
+2. Review the `fleux-kernel-builder` service and deploy the Blueprint.
+3. During initial setup, enter:
+   - `GH_TOKEN`: a repository-scoped fine-grained GitHub token with **Actions: Read and write** and **Metadata: Read-only**. Do not grant Contents write access; the MCP service does not need it.
+   - `MCP_AUTH_TOKEN`: a separate high-entropy bearer secret. Save it securely; it is required when configuring the MCP connection in ChatGPT.
+4. After Render reports the service healthy, use `https://YOUR-SERVICE.onrender.com/mcp` as the MCP URL and configure HTTP Bearer authentication with the `MCP_AUTH_TOKEN` value. The public health probe is `/health`.
+
+The Blueprint uses Render's **Free** compute plan to avoid opting into paid compute automatically. Free web services spin down after 15 minutes without inbound traffic and can take about a minute to start on the next request. Upgrade only if an always-on endpoint is required.
