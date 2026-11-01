@@ -64,7 +64,7 @@ Connect a remote MCP client to `https://YOUR-HOST/mcp` using HTTP Bearer authent
 
 The CI workflow invokes `scripts/build_kernel.sh`. For a local build, install the Android Clang `r563880c` toolchain and the GNU ARM cross-compilers, then run:
 
-    TOOLCHAIN_DIR=/path/to/clang-r563880c
+    export TOOLCHAIN_DIR=/path/to/clang-r563880c
     bash scripts/build_kernel.sh lineage-24.0
 
 The script clones the source into `kernel-src`, builds to `out`, and places verified outputs in `artifacts/`.
