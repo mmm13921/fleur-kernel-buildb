@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: fleux-kernel-builder
+    runtime: docker
+    plan: free
+    region: frankfurt
+    branch: main
+    autoDeploy: true
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    envVars:
+      - key: PORT
+        value: "8000"
+      - key: BUILDER_WORKFLOW_REF
+        value: main
+      - key: MCP_AUTH_TOKEN
+        generateValue: true
+      - key: GH_TOKEN
+        sync: false
