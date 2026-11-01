@@ -14,6 +14,6 @@ services:
       - key: BUILDER_WORKFLOW_REF
         value: main
       - key: MCP_AUTH_TOKEN
-        generateValue: true
+        sync: false
       - key: GH_TOKEN
         sync: false
