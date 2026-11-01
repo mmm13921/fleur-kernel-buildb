@@ -55,9 +55,10 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/clang-r563880c"
-          curl --retry 3 --retry-delay 3 -fL \
-            "https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/b54cd2c8e9e0bb057aef3804d42d39c5ac4674c7/clang-r563880c.tar.gz" \
+          curl --retry 5 --retry-all-errors --retry-delay 5 --connect-timeout 60 -fL \
+            "https://github.com/SA9990/Toolchain/releases/download/clang-r563880c/clang-r563880c.tar.gz" \
             -o "$RUNNER_TEMP/clang-r563880c.tar.gz"
+          echo "57b456636aa9c3f5e159bc1dd6eddd7c6de654281cad84376e408a5d35f91bab  $RUNNER_TEMP/clang-r563880c.tar.gz" | sha256sum -c -
           tar -xzf "$RUNNER_TEMP/clang-r563880c.tar.gz" -C "$RUNNER_TEMP/clang-r563880c"
           test -x "$RUNNER_TEMP/clang-r563880c/bin/clang"
           echo "$RUNNER_TEMP/clang-r563880c/bin" >> "$GITHUB_PATH"
