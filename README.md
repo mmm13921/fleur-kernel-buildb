@@ -58,7 +58,9 @@ Run locally:
     export MCP_AUTH_TOKEN='...'
     uvicorn server:app --host 0.0.0.0 --port 8000
 
-Connect a remote MCP client to `https://YOUR-HOST/mcp` using HTTP Bearer authentication. Do not expose the service without TLS and authentication.
+Connect a Bearer-capable remote MCP client to `https://YOUR-HOST/mcp` using HTTP Bearer authentication. Do not expose the service without TLS and authentication.
+
+**ChatGPT-specific limitation:** this initial server uses a static bearer secret and is not yet a ChatGPT-compatible OAuth server. ChatGPT custom MCP connections require an OAuth 2.1 authorization flow; ChatGPT does not accept a customer-supplied static API key as its client credential. See [ChatGPT MCP authentication requirements](https://developers.openai.com/plugins/build/auth). The current ChatGPT account tier also matters: custom MCP connections are available on Business and Enterprise/Edu; Pro is read/fetch only, and Free is not listed as supporting custom MCP connections. See [OpenAI's current availability matrix](https://help.openai.com/en/articles/12584461-connecting-custom-mcp-servers-in-chatgpt).
 
 ## Local baseline build
 
