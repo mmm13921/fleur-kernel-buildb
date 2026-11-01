@@ -1,0 +1,114 @@
+name: Fleux Beta 1 — 2.1 GHz experimental
+
+run-name: Beta 1 2.1GHz (${{ github.event_name }})
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/release-beta1.yml
+      - scripts/build_kernel.sh
+      - scripts/apply_beta1_2100.sh
+      - docs/beta1-release-notes.md
+  workflow_dispatch:
+    inputs:
+      source_ref:
+        description: Fleux source branch or tag
+        required: true
+        default: lineage-24.0
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: fleux-beta1-release
+  cancel-in-progress: false
+
+jobs:
+  build-and-release:
+    name: Build and publish Beta 1
+    runs-on: ubuntu-24.04
+    timeout-minutes: 150
+    env:
+      SOURCE_REF: ${{ inputs.source_ref || 'lineage-24.0' }}
+    steps:
+      - name: Check out builder
+        uses: actions/checkout@v4
+
+      - name: Validate source ref
+        shell: bash
+        run: |
+          case "$SOURCE_REF" in
+            ""|-*|*..*|*//*|*[!A-Za-z0-9._/-]*)
+              echo "Invalid source ref: $SOURCE_REF" >&2
+              exit 2
+              ;;
+          esac
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            bc bison build-essential ca-certificates curl flex git \
+            gcc-aarch64-linux-gnu gcc-arm-linux-gnueabi libelf-dev \
+            libssl-dev lld make python3 python3-pip dwarves zip
+
+      - name: Install Android Clang r563880c
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/clang-r563880c"
+          curl --retry 5 --retry-all-errors --retry-delay 5 --connect-timeout 60 -fL \
+            "https://github.com/SA9990/Toolchain/releases/download/clang-r563880c/clang-r563880c.tar.gz" \
+            -o "$RUNNER_TEMP/clang-r563880c.tar.gz"
+          echo "57b456636aa9c3f5e159bc1dd6eddd7c6de654281cad84376e408a5d35f91bab  $RUNNER_TEMP/clang-r563880c.tar.gz" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/clang-r563880c.tar.gz" -C "$RUNNER_TEMP/clang-r563880c"
+          test -x "$RUNNER_TEMP/clang-r563880c/bin/clang"
+          echo "$RUNNER_TEMP/clang-r563880c/bin" >> "$GITHUB_PATH"
+          echo "TOOLCHAIN_DIR=$RUNNER_TEMP/clang-r563880c" >> "$GITHUB_ENV"
+
+      - name: Build Beta 1 (2.1 GHz, stock voltage table)
+        run: bash scripts/build_kernel.sh "$SOURCE_REF" beta1
+
+      - name: Package release assets
+        run: |
+          cp docs/beta1-release-notes.md artifacts/RELEASE-NOTES.md
+          (
+            cd artifacts
+            zip -9 -j "Beta-1-2.1GHz-experimental.zip" \
+              Image.gz-dtb kernel.config build-manifest.txt beta1-source.patch RELEASE-NOTES.md
+          )
+          sha256sum artifacts/Beta-1-2.1GHz-experimental.zip | tee artifacts/release-sha256.txt
+
+      - name: Keep a workflow artifact copy
+        uses: actions/upload-artifact@v4
+        with:
+          name: fleux-beta1-2.1ghz
+          path: artifacts/
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish GitHub Release — Beta 1
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          ASSETS=(
+            "artifacts/Beta-1-2.1GHz-experimental.zip"
+            "artifacts/Image.gz-dtb"
+            "artifacts/kernel.config"
+            "artifacts/build-manifest.txt"
+            "artifacts/beta1-source.patch"
+            "artifacts/release-sha256.txt"
+          )
+          if gh release view beta-1 --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload beta-1 "${ASSETS[@]}" --repo "$GITHUB_REPOSITORY" --clobber
+          else
+            gh release create beta-1 "${ASSETS[@]}" \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "Beta 1" \
+              --target "$GITHUB_SHA" \
+              --notes-file docs/beta1-release-notes.md
+          fi
