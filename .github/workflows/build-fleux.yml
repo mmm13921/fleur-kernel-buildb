@@ -1,0 +1,69 @@
+name: Fleux baseline kernel build
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_ref:
+        description: Fleux source branch or tag
+        required: true
+        default: lineage-24.0
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fleux-baseline-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build fleur_defconfig
+    runs-on: ubuntu-24.04
+    timeout-minutes: 150
+    env:
+      SOURCE_REF: ${{ inputs.source_ref }}
+    steps:
+      - name: Check out builder
+        uses: actions/checkout@v4
+
+      - name: Validate source ref
+        shell: bash
+        run: |
+          case "$SOURCE_REF" in
+            ""|-*|*..*|*//*|*[!A-Za-z0-9._/-]*)
+              echo "Invalid source ref: $SOURCE_REF" >&2
+              exit 2
+              ;;
+          esac
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            bc bison build-essential ca-certificates curl flex git \
+            gcc-aarch64-linux-gnu gcc-arm-linux-gnueabi libelf-dev \
+            libssl-dev lld make python3 python3-pip
+
+      - name: Install Android Clang r563880c
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/clang-r563880c"
+          curl --retry 3 --retry-delay 3 -fL \
+            "https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main-kernel-2026/clang-r563880c.tar.gz" \
+            -o "$RUNNER_TEMP/clang-r563880c.tar.gz"
+          tar -xzf "$RUNNER_TEMP/clang-r563880c.tar.gz" -C "$RUNNER_TEMP/clang-r563880c"
+          test -x "$RUNNER_TEMP/clang-r563880c/bin/clang"
+          echo "$RUNNER_TEMP/clang-r563880c/bin" >> "$GITHUB_PATH"
+          echo "TOOLCHAIN_DIR=$RUNNER_TEMP/clang-r563880c" >> "$GITHUB_ENV"
+
+      - name: Build kernel
+        run: ./scripts/build_kernel.sh "$SOURCE_REF"
+
+      - name: Upload baseline image and manifest
+        uses: actions/upload-artifact@v4
+        with:
+          name: fleux-baseline
+          path: artifacts/
+          if-no-files-found: error
+          retention-days: 14
