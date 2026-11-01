@@ -89,6 +89,8 @@ Build artifacts are research outputs, not installation instructions. Before any 
 3. During initial setup, enter:
    - `GH_TOKEN`: a repository-scoped fine-grained GitHub token with **Actions: Read and write** and **Metadata: Read-only**. Do not grant Contents write access; the MCP service does not need it.
    - `MCP_AUTH_TOKEN`: a separate high-entropy bearer secret. Save it securely; it is required when configuring the MCP connection in ChatGPT.
-4. After Render reports the service healthy, use `https://YOUR-SERVICE.onrender.com/mcp` as the MCP URL and configure HTTP Bearer authentication with the `MCP_AUTH_TOKEN` value. The public health probe is `/health`.
+4. After Render reports the service healthy, use `https://YOUR-SERVICE.onrender.com/mcp` as the MCP URL for a remote MCP client that supports static HTTP Bearer credentials. The public health probe is `/health`.
+
+This Render setup is **not yet suitable for connecting to ChatGPT directly**. ChatGPT requires OAuth 2.1 for authenticated custom MCP servers; the static `MCP_AUTH_TOKEN` in this prototype is intended for compatible MCP clients. A ChatGPT-ready deployment needs a proper OAuth authorization server and an eligible ChatGPT plan/workspace.
 
 The Blueprint uses Render's **Free** compute plan to avoid opting into paid compute automatically. Free web services spin down after 15 minutes without inbound traffic and can take about a minute to start on the next request. Upgrade only if an always-on endpoint is required.
