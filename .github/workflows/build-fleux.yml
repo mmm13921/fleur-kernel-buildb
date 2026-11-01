@@ -58,7 +58,7 @@ jobs:
           echo "TOOLCHAIN_DIR=$RUNNER_TEMP/clang-r563880c" >> "$GITHUB_ENV"
 
       - name: Build kernel
-        run: ./scripts/build_kernel.sh "$SOURCE_REF"
+        run: bash scripts/build_kernel.sh "$SOURCE_REF"
 
       - name: Upload baseline image and manifest
         uses: actions/upload-artifact@v4
