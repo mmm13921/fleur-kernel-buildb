@@ -56,7 +56,7 @@ jobs:
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/clang-r563880c"
           curl --retry 3 --retry-delay 3 -fL \
-            "https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main-kernel-2026/clang-r563880c.tar.gz" \
+            "https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/b54cd2c8e9e0bb057aef3804d42d39c5ac4674c7/clang-r563880c.tar.gz" \
             -o "$RUNNER_TEMP/clang-r563880c.tar.gz"
           tar -xzf "$RUNNER_TEMP/clang-r563880c.tar.gz" -C "$RUNNER_TEMP/clang-r563880c"
           test -x "$RUNNER_TEMP/clang-r563880c/bin/clang"
