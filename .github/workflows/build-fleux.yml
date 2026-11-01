@@ -1,6 +1,12 @@
 name: Fleux baseline kernel build
 
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/build-fleux.yml
+      - scripts/build_kernel.sh
   workflow_dispatch:
     inputs:
       source_ref:
@@ -22,7 +28,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 150
     env:
-      SOURCE_REF: ${{ inputs.source_ref }}
+      SOURCE_REF: ${{ inputs.source_ref || 'lineage-24.0' }}
     steps:
       - name: Check out builder
         uses: actions/checkout@v4
