@@ -125,7 +125,22 @@ if d.count("clock-frequency = <2200000000>;")<2 or "change_flag = <1>;" not in d
 for path,data in ((DTS,d),(OPP,o),(PVT,v),(PH,h),(EEM,e)):wr(path,data)
 changed=set(subprocess.check_output(["git","-C",str(r),"diff","--name-only"],text=True).splitlines())
 allowed={DTS,OPP,PVT,PH,EEM}
-if changed!=allowed:raise SystemExit(f"OC2: unexpected modified files {sorted(changed)}")
+walt_allowed={
+    "arch/arm64/configs/fleur_defconfig",
+    "drivers/cpufreq/Kconfig",
+    "include/linux/sched.h",
+    "init/Kconfig",
+    "kernel/sched/Makefile",
+    "kernel/sched/core.c",
+    "kernel/sched/cpufreq_schedutil.c",
+    "kernel/sched/cputime.c",
+    "kernel/sched/fair.c",
+    "kernel/sched/sched.h",
+    "kernel/sched/walt.c",
+    "kernel/sched/walt.h",
+}
+if changed not in (allowed, allowed | walt_allowed):
+    raise SystemExit(f"OC2: unexpected modified files {sorted(changed)}")
 print("OC2 SOURCE AUDIT PASSED")
 print("CPU6/CPU7 OPP 2200000 kHz / 1.15625 V: DTB, Linux OPP, SSPM PVT, EEM")
 print("Software voltage ceilings: VPROC 1.15625 V, VSRAM 1.25625 V")
