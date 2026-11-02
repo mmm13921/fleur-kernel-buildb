@@ -18,7 +18,7 @@ case "$SOURCE_REF" in
 esac
 
 case "$BUILD_PROFILE" in
-  baseline|oc1|oc2) ;;
+  baseline|oc1|oc2|walt-oc2) ;;
   *)
     echo "Unsupported build profile: $BUILD_PROFILE" >&2
     exit 2
@@ -45,6 +45,10 @@ case "$BUILD_PROFILE" in
     bash "$WORKSPACE/scripts/apply_oc1_2200.sh" "$SRC_DIR"
     ;;
   oc2)
+    bash "$WORKSPACE/scripts/apply_oc2_2200.sh" "$SRC_DIR"
+    ;;
+  walt-oc2)
+    python3 "$WORKSPACE/scripts/apply_walt.py" "$SRC_DIR"
     bash "$WORKSPACE/scripts/apply_oc2_2200.sh" "$SRC_DIR"
     ;;
 esac
@@ -75,7 +79,7 @@ fi
 
 cp "$IMAGE" "$ARTIFACT_DIR/Image.gz-dtb"
 cp "$OUT_DIR/.config" "$ARTIFACT_DIR/kernel.config"
-if [[ "$BUILD_PROFILE" == "oc2" ]]; then
+if [[ "$BUILD_PROFILE" == "oc2" || "$BUILD_PROFILE" == "walt-oc2" ]]; then
   python3 "$WORKSPACE/scripts/audit_oc2_image.py" "$ARTIFACT_DIR/Image.gz-dtb"
 fi
 if [[ "$BUILD_PROFILE" == "oc1" ]]; then
@@ -265,6 +269,9 @@ case "$BUILD_PROFILE" in
   oc2)
     git -C "$SRC_DIR" diff --binary > "$ARTIFACT_DIR/oc2-source.patch"
     ;;
+  walt-oc2)
+    git -C "$SRC_DIR" diff --binary > "$ARTIFACT_DIR/walt-oc2-source.patch"
+    ;;
 esac
 
 {
@@ -274,7 +281,7 @@ esac
   echo "device_config=fleur_defconfig"
   echo "arch=arm64"
   echo "build_profile=$BUILD_PROFILE"
-  if [[ "$BUILD_PROFILE" == "oc1" || "$BUILD_PROFILE" == "oc2" ]]; then
+  if [[ "$BUILD_PROFILE" == "oc1" || "$BUILD_PROFILE" == "oc2" || "$BUILD_PROFILE" == "walt-oc2" ]]; then
     echo "target_big_cluster_cpus=6,7"
     echo "target_big_cluster_max_hz=2200000000"
     echo "target_big_cluster_max_vproc_uv=1156250"
@@ -285,17 +292,23 @@ esac
     echo "thermal_and_watchdog_protections=unchanged"
     echo "vendor_sspm_firmware_binary=unchanged"
     echo "pmic_physical_regulator_ceilings=unchanged"
-    if [[ "$BUILD_PROFILE" == "oc2" ]]; then
+    if [[ "$BUILD_PROFILE" == "oc2" || "$BUILD_PROFILE" == "walt-oc2" ]]; then
       echo "eem_big_cluster_base_khz=2200000"
       echo "active_opp_validation=kernel+eem+sspm_pvt+appended_dtb"
     else
       echo "active_opp_validation=kernel+sspm_pvt+appended_dtb"
     fi
+    if [[ "$BUILD_PROFILE" == "walt-oc2" ]]; then
+      echo "scheduler=WALT"
+      echo "walt_window_ns=20000000"
+      echo "cpufreq_governor=walt"
+      echo "walt_governor_backend=schedutil"
+    fi
   fi
   echo "toolchain=Android LLVM clang-r563880c"
   echo "compiler=$CLANG_VERSION"
   echo "kernel_image=Image.gz-dtb"
-  if [[ "$BUILD_PROFILE" == "oc1" || "$BUILD_PROFILE" == "oc2" ]]; then
+  if [[ "$BUILD_PROFILE" == "oc1" || "$BUILD_PROFILE" == "oc2" || "$BUILD_PROFILE" == "walt-oc2" ]]; then
     echo "flashable_zip=AnyKernel3"
   else
     echo "flashable_zip=false"
@@ -307,6 +320,8 @@ esac
     sha256sum "$ARTIFACT_DIR/oc1-source.patch"
   elif [[ "$BUILD_PROFILE" == "oc2" ]]; then
     sha256sum "$ARTIFACT_DIR/oc2-source.patch"
+  elif [[ "$BUILD_PROFILE" == "walt-oc2" ]]; then
+    sha256sum "$ARTIFACT_DIR/walt-oc2-source.patch"
   fi
 } | tee "$ARTIFACT_DIR/build-manifest.txt"
 
