@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import pathlib, re, shutil, sys
+import pathlib, re, shutil, sys, urllib.request
 
 kernel = pathlib.Path(sys.argv[1]).resolve()
 govsrc = pathlib.Path(sys.argv[2]).resolve()
@@ -28,13 +28,30 @@ items = [
     ("NIGHTMARE", "nightmare"),
     ("DANCEDANCE", "dancedance"),
     ("PEGASUSQ", "pegasusq"),
+    ("LAZY", "lazy"),
+    ("ZZMOOVE", "zzmoove"),
+    ("SLP", "slp"),
+    ("INTELLIMM", "intellimm"),
 ]
+extra_sources = {
+    "lazy": "https://raw.githubusercontent.com/CyanogenMod-Atrix/android_kernel_motorola_olympus/84f8f2605eb02002edc40b3a74aed7fce6b5951d/drivers/cpufreq/cpufreq_lazy.c",
+    "zzmoove": "https://raw.githubusercontent.com/jollaman999/jolla-kernel_bullhead/bf1729ad11762767a4a594b3e2461cdcfcb53953/drivers/cpufreq/cpufreq_zzmoove.c",
+    "slp": "https://raw.githubusercontent.com/agat63/AGAT_L720_kernel/9ad2fff5b692de31a11dfd4081801602064678e1/drivers/cpufreq/cpufreq_slp.c",
+    "intellimm": "https://raw.githubusercontent.com/GrifoDev/SuperKernel/32c3130d8ec98f5f3b8846d7d56f224c66189093/drivers/cpufreq/cpufreq_intellimm.c",
+}
 added = []
 missing = []
 for symbol, name in items:
     filename = f"cpufreq_{name}.c"
     candidates = [govsrc / filename, govsrc / "sammy gov_freq" / filename]
     source = next((p for p in candidates if p.is_file()), None)
+    if source is None and name in extra_sources:
+        source = govsrc / filename
+        try:
+            urllib.request.urlretrieve(extra_sources[name], source)
+        except Exception as error:
+            print(f"Could not download {name}: {error}")
+            source = None
     if source is None:
         missing.append(name)
         continue
@@ -88,4 +105,4 @@ print("MX Guardian governors added:")
 for symbol, name, filename in added:
     print(f"  {name}: {filename}")
 print("Not available in pinned source collection: " + (", ".join(missing) if missing else "none"))
-print("Not implemented as standalone CPUFreq governors: interactiveX, lionheartX, lazy, zzmoove, hotplug, slp, intellimm")
+print("Not implemented as standalone CPUFreq governors: interactiveX, lionheartX, hotplug")
