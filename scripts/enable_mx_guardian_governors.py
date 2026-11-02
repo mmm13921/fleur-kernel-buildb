@@ -12,7 +12,6 @@ defconfig = kernel / "arch/arm64/configs/fleur_defconfig"
 # Names that are aliases, hotplug controllers, or lack a compatible source are
 # deliberately not fabricated as CPUFreq governors.
 items = [
-    ("YANKACTIVE", "yankactive"),
     ("INTELLIACTIVE", "intelliactive"),
     ("IMPULSE", "impulse"),
     ("BLU_ACTIVE", "blu_active"),
