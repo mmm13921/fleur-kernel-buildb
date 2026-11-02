@@ -127,8 +127,10 @@ esac
   sha256sum "$ARTIFACT_DIR/Image.gz-dtb" "$ARTIFACT_DIR/kernel.config"
   if [[ "$BUILD_PROFILE" == "beta1" ]]; then
     sha256sum "$ARTIFACT_DIR/beta1-source.patch"
-  elif [[ "$BUILD_PROFILE" == "beta2" || "$BUILD_PROFILE" == "oc1" ]]; then
+  elif [[ "$BUILD_PROFILE" == "beta2" ]]; then
     sha256sum "$ARTIFACT_DIR/beta2-source.patch"
+  elif [[ "$BUILD_PROFILE" == "oc1" ]]; then
+    sha256sum "$ARTIFACT_DIR/oc1-source.patch"
   fi
 } | tee "$ARTIFACT_DIR/build-manifest.txt"
 
