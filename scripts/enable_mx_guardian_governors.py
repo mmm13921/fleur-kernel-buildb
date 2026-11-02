@@ -62,7 +62,7 @@ for symbol, name in items:
     # implementation (idle accounting comes from linux/tick.h).
     if name == "interactive":
         text = target.read_text()
-        text = re.sub(r"(?m)^\\s*#include\\s*[<\"]asm/cputime\\.h[>\"]\\s*\\n", "", text)
+        text = text.replace("#include <asm/cputime.h>", "")
         trace_stub = """/*
  * This 4.19 base does not ship the Android Interactive trace header.
  * Keep the governor functional while compiling out optional trace events.
@@ -70,15 +70,13 @@ for symbol, name in items:
 #define trace_cpufreq_interactive_notyet(...) do { } while (0)
 #define trace_cpufreq_interactive_already(...) do { } while (0)
 #define trace_cpufreq_interactive_target(...) do { } while (0)
-#define trace_cpufreq_interactive_set speed(...) do { } while (0)
+#define trace_cpufreq_interactive_setspeed(...) do { } while (0)
 #define trace_cpufreq_interactive_boost(...) do { } while (0)
 #define trace_cpufreq_interactive_unboost(...) do { } while (0)
 """
-        text = re.sub(
-            r"(?m)^#define CREATE_TRACE_POINTS\\s*\\n#include [<\"]trace/events/cpufreq_interactive\\.h[>\"]\\s*\\n",
-            trace_stub.replace("trace_cpufreq_interactive_set speed", "trace_cpufreq_interactive_setspeed"),
-            text,
-            count=1,
+        text = text.replace(
+            "#define CREATE_TRACE_POINTS\\n#include <trace/events/cpufreq_interactive.h>",
+            trace_stub.rstrip(),
         )
         if "trace/events/cpufreq_interactive.h" in text or "asm/cputime.h" in text:
             raise SystemExit("Interactive compatibility headers were not removed")
