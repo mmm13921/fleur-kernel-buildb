@@ -12,7 +12,7 @@ defconfig = kernel / "arch/arm64/configs/fleur_defconfig"
 # Names that are aliases, hotplug controllers, or lack a compatible source are
 # deliberately not fabricated as CPUFreq governors.
 items = [
-    ("INTELLIACTIVE", "intelliactive"),
+    # Removed: Intelliactive requires unavailable asm/cputime.h on Fleux 4.19.
     ("IMPULSE", "impulse"),
     ("BLU_ACTIVE", "blu_active"),
     ("SMARTASS2", "smartass2"),
