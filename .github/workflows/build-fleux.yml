@@ -6,7 +6,6 @@ on:
       - main
     paths:
       - .github/workflows/build-fleux.yml
-      - scripts/build_kernel.sh
   workflow_dispatch:
     inputs:
       source_ref:
