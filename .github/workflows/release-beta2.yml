@@ -3,14 +3,6 @@ name: Fleux Beta 2 — 2.2GHz AnyKernel3
 run-name: Fleux Beta 2 2.2GHz (${{ github.event_name }})
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - .github/workflows/release-beta2.yml
-      - scripts/apply_beta2_2200.sh
-      - scripts/anykernel_beta2.sh
-      - docs/beta2-release-notes.md
   workflow_dispatch:
     inputs:
       source_ref:
