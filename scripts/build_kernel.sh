@@ -18,7 +18,7 @@ case "$SOURCE_REF" in
 esac
 
 case "$BUILD_PROFILE" in
-  baseline|beta1|beta2) ;;
+  baseline|beta1|beta2|oc1) ;;
   *)
     echo "Unsupported build profile: $BUILD_PROFILE" >&2
     exit 2
@@ -46,6 +46,9 @@ case "$BUILD_PROFILE" in
     ;;
   beta2)
     bash "$WORKSPACE/scripts/apply_beta2_2200.sh" "$SRC_DIR"
+    ;;
+  oc1)
+    bash "$WORKSPACE/scripts/apply_oc1_2200.sh" "$SRC_DIR"
     ;;
 esac
 
@@ -85,6 +88,9 @@ case "$BUILD_PROFILE" in
   beta2)
     git -C "$SRC_DIR" diff --binary > "$ARTIFACT_DIR/beta2-source.patch"
     ;;
+  oc1)
+    git -C "$SRC_DIR" diff --binary > "$ARTIFACT_DIR/oc1-source.patch"
+    ;;
 esac
 
 {
@@ -99,7 +105,7 @@ esac
     echo "target_big_cluster_voltage_policy=unchanged_stock_CPU_LEVEL_0"
     echo "stock_big_cluster_top_opp_voltage_uv=1118750"
     echo "thermal_protection=unchanged"
-  elif [[ "$BUILD_PROFILE" == "beta2" ]]; then
+  elif [[ "$BUILD_PROFILE" == "beta2" || "$BUILD_PROFILE" == "oc1" ]]; then
     echo "target_big_cluster_cpus=6,7"
     echo "target_big_cluster_max_hz=2200000000"
     echo "target_big_cluster_max_uv=1156250"
@@ -111,7 +117,7 @@ esac
   echo "toolchain=Android LLVM clang-r563880c"
   echo "compiler=$CLANG_VERSION"
   echo "kernel_image=Image.gz-dtb"
-  if [[ "$BUILD_PROFILE" == "beta2" ]]; then
+  if [[ "$BUILD_PROFILE" == "beta2" || "$BUILD_PROFILE" == "oc1" ]]; then
     echo "flashable_zip=AnyKernel3"
   else
     echo "flashable_zip=false"
@@ -121,7 +127,7 @@ esac
   sha256sum "$ARTIFACT_DIR/Image.gz-dtb" "$ARTIFACT_DIR/kernel.config"
   if [[ "$BUILD_PROFILE" == "beta1" ]]; then
     sha256sum "$ARTIFACT_DIR/beta1-source.patch"
-  elif [[ "$BUILD_PROFILE" == "beta2" ]]; then
+  elif [[ "$BUILD_PROFILE" == "beta2" || "$BUILD_PROFILE" == "oc1" ]]; then
     sha256sum "$ARTIFACT_DIR/beta2-source.patch"
   fi
 } | tee "$ARTIFACT_DIR/build-manifest.txt"
