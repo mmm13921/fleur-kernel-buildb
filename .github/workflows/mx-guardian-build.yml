@@ -3,6 +3,8 @@ name: MX Guardian kernel build
 on:
   push:
     branches: [mx-guardian-governors]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
