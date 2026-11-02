@@ -87,8 +87,9 @@ def add_once(data, marker, addition, label):
 
 # Use a pinned, device-family 4.19 WALT reference, then remove the reference
 # tree's OPLUS-only hooks and tracepoints that are not part of Fleux.
-walt_src = read("patches/walt/upstream-walt.c")
-walt_hdr = read("patches/walt/upstream-walt.h")
+PATCH_ROOT = Path(__file__).resolve().parent.parent
+walt_src = (PATCH_ROOT / "patches/walt/upstream-walt.c").read_text()
+walt_hdr = (PATCH_ROOT / "patches/walt/upstream-walt.h").read_text()
 
 walt_src = walt_src.replace('#include <trace/events/sched.h>\n', '')
 walt_src = walt_src.replace(
