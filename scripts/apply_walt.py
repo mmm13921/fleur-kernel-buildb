@@ -572,7 +572,7 @@ walt_kconfig = (
     "\t  demand is used by the scheduler and by the WALT-backed schedutil\n"
     "\t  CPUFreq governor. The default window is 20 ms.\n\n"
 )
-s = insert_before_once(s, "config SYSFS_DEPRECATED", walt_kconfig, "WALT scheduler Kconfig")
+s = insert_before_once(s, "config SYSFS_DEPRECATED_V2", walt_kconfig, "WALT scheduler Kconfig")
 write(p, s)
 
 # Set WALT and its governor as the phone's default CPUFreq policy.
