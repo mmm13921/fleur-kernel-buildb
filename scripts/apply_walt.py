@@ -35,13 +35,41 @@ def struct_close(data, anchor, label):
     if opening < 0:
         raise SystemExit(f"WALT: {label}: opening brace not found")
     depth = 0
-    for i in range(opening, len(data)):
-        if data[i] == "{":
-            depth += 1
-        elif data[i] == "}":
-            depth -= 1
-            if depth == 0:
-                return i
+    state = "code"
+    i = opening
+    while i < len(data):
+        ch = data[i]
+        nxt = data[i + 1] if i + 1 < len(data) else ""
+        if state == "code":
+            if ch == "/" and nxt == "*":
+                state = "block"
+                i += 1
+            elif ch == "/" and nxt == "/":
+                state = "line"
+                i += 1
+            elif ch == '"':
+                state = "string"
+            elif ch == "'":
+                state = "char"
+            elif ch == "{":
+                depth += 1
+            elif ch == "}":
+                depth -= 1
+                if depth == 0:
+                    return i
+        elif state == "block":
+            if ch == "*" and nxt == "/":
+                state = "code"
+                i += 1
+        elif state == "line":
+            if ch == "\n":
+                state = "code"
+        elif state in ("string", "char"):
+            if ch == "\\\\":
+                i += 1
+            elif (state == "string" and ch == '"') or (state == "char" and ch == "'"):
+                state = "code"
+        i += 1
     raise SystemExit(f"WALT: {label}: unterminated structure")
 
 def replace_function(data, signature, replacement, label):
@@ -416,6 +444,29 @@ body = replace_once(
     "\twalt_migrate_sync_cpu(cpu);\n"
     "#endif /* CONFIG_SCHED_WALT */\n",
     "CPU dying WALT sync migration"
+)
+s = s[:start] + body + s[close + 1:]
+write(p, s)
+
+
+# Add a final source-side WALT sample before load-balancer migration.
+p = "kernel/sched/fair.c"
+s = read(p)
+fn = "static void detach_task(struct task_struct *p, struct lb_env *env)"
+start = s.find(fn)
+if start < 0:
+    raise SystemExit("WALT: fair detach_task() not found")
+close = struct_close(s, fn, "fair detach_task")
+body = s[start:close + 1]
+body = replace_once(
+    body,
+    "\tp->on_rq = TASK_ON_RQ_MIGRATING;\n\tdeactivate_task(env->src_rq, p, DEQUEUE_NOCLOCK);\n\tset_task_cpu(p, env->dst_cpu);",
+    "\tp->on_rq = TASK_ON_RQ_MIGRATING;\n\tdeactivate_task(env->src_rq, p, DEQUEUE_NOCLOCK);\n"
+    "#ifdef CONFIG_SCHED_WALT\n"
+    "\twalt_update_task_ravg(p, env->src_rq, TASK_MIGRATE, walt_ktime_clock(), 0);\n"
+    "#endif /* CONFIG_SCHED_WALT */\n"
+    "\tset_task_cpu(p, env->dst_cpu);",
+    "task migration WALT accounting"
 )
 s = s[:start] + body + s[close + 1:]
 write(p, s)
