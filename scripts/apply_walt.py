@@ -65,7 +65,7 @@ def struct_close(data, anchor, label):
             if ch == "\n":
                 state = "code"
         elif state in ("string", "char"):
-            if ch == "\\\\":
+            if ch == "\\":
                 i += 1
             elif (state == "string" and ch == '"') or (state == "char" and ch == "'"):
                 state = "code"
