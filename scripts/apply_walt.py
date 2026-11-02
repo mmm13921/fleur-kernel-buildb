@@ -599,6 +599,33 @@ if s.count("CONFIG_SCHED_WALT=y") != 1:
 if s.count("CONFIG_CPU_FREQ_DEFAULT_GOV_WALT=y") != 1:
     raise SystemExit("WALT: duplicate WALT default governor entry")
 
+# Add a WALT forward declaration and let schedutil's exported rate-limit
+# setters accept the WALT alias, which shares the same tunables implementation.
+p = "kernel/sched/cpufreq_schedutil.c"
+s = read(p)
+s = insert_before_once(
+    s,
+    "struct cpufreq_governor schedutil_gov;\\n",
+    "struct cpufreq_governor schedutil_gov;\\n"
+    "#ifdef CONFIG_CPU_FREQ_GOV_WALT\\n"
+    "extern struct cpufreq_governor walt_gov;\\n"
+    "#endif /* CONFIG_CPU_FREQ_GOV_WALT */\\n",
+    "WALT governor forward declaration"
+)
+old_check = "if (policy->governor != &schedutil_gov)"
+new_check = (
+    "if (policy->governor != &schedutil_gov\\n"
+    "#ifdef CONFIG_CPU_FREQ_GOV_WALT\\n"
+    "        && policy->governor != &walt_gov\\n"
+    "#endif /* CONFIG_CPU_FREQ_GOV_WALT */\\n"
+    "       )"
+)
+if s.count(old_check) != 2:
+    raise SystemExit(
+        f"WALT: schedutil rate-limit guard count changed: {s.count(old_check)}"
+    )
+s = s.replace(old_check, new_check)
+
 # Add a second cpufreq governor descriptor using the verified schedutil
 # callbacks. The WALT-backed cpu_util_cfs() path is active when CONFIG_SCHED_WALT.
 p = "kernel/sched/cpufreq_schedutil.c"
@@ -691,7 +718,10 @@ checks = {
                             "walt_update_task_ravg", "walt_init_new_task_load"],
     "kernel/sched/Makefile": ["obj-$(CONFIG_SCHED_WALT) += walt.o"],
     "drivers/cpufreq/Kconfig": ["CPU_FREQ_DEFAULT_GOV_WALT", "CPU_FREQ_GOV_WALT"],
-    "kernel/sched/cpufreq_schedutil.c": ['.name\t\t\t= "walt"', "&walt_gov"],
+    "kernel/sched/cpufreq_schedutil.c": [
+        '.name\t\t\t= "walt"', "&walt_gov",
+        "policy->governor != &walt_gov"
+    ],
     "arch/arm64/configs/fleur_defconfig": ["CONFIG_SCHED_WALT=y",
             "CONFIG_CPU_FREQ_DEFAULT_GOV_WALT=y", "CONFIG_CPU_FREQ_GOV_WALT=y"]
 }
