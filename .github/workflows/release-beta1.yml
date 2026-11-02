@@ -8,7 +8,6 @@ on:
       - main
     paths:
       - .github/workflows/release-beta1.yml
-      - scripts/build_kernel.sh
       - scripts/apply_beta1_2100.sh
       - docs/beta1-release-notes.md
   workflow_dispatch:
