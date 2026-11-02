@@ -1,6 +1,6 @@
 name: Fleux Beta 2 — 2.2GHz AnyKernel3
 
-run-name: Fleux Beta 2 2.2GHz (\${{ github.event_name }})
+run-name: Fleux Beta 2 2.2GHz (${{ github.event_name }})
 
 on:
   push:
@@ -33,7 +33,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 180
     env:
-      SOURCE_REF: \${{ inputs.source_ref || 'lineage-24.0' }}
+      SOURCE_REF: ${{ inputs.source_ref || 'lineage-24.0' }}
     steps:
       - name: Check out builder
         uses: actions/checkout@v4
@@ -121,7 +121,7 @@ jobs:
 
       - name: Publish GitHub prerelease
         env:
-          GH_TOKEN: \${{ github.token }}
+          GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
@@ -134,9 +134,9 @@ jobs:
             "artifacts/Beta-2-SHA256.txt"
           )
           if gh release view beta-2 --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            gh release upload beta-2 "\${ASSETS[@]}" --repo "$GITHUB_REPOSITORY" --clobber
+            gh release upload beta-2 "${ASSETS[@]}" --repo "$GITHUB_REPOSITORY" --clobber
           else
-            gh release create beta-2 "\${ASSETS[@]}" \
+            gh release create beta-2 "${ASSETS[@]}" \
               --repo "$GITHUB_REPOSITORY" \
               --title "Fleux Beta 2 — 2.2GHz AnyKernel3" \
               --target "$GITHUB_SHA" \
