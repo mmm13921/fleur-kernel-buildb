@@ -449,24 +449,24 @@ s = s[:start] + body + s[close + 1:]
 write(p, s)
 
 
-# Add a final source-side WALT sample before load-balancer migration.
-p = "kernel/sched/fair.c"
+# Account task migrations at the common CPU-switch hook, matching the MT6781
+# reference implementation and covering both wakeup and load-balance migrations.
+p = "kernel/sched/core.c"
 s = read(p)
-fn = "static void detach_task(struct task_struct *p, struct lb_env *env)"
+fn = "void set_task_cpu(struct task_struct *p, unsigned int new_cpu)"
 start = s.find(fn)
 if start < 0:
-    raise SystemExit("WALT: fair detach_task() not found")
-close = struct_close(s, fn, "fair detach_task")
+    raise SystemExit("WALT: set_task_cpu() not found")
+close = struct_close(s, fn, "set_task_cpu")
 body = s[start:close + 1]
 body = replace_once(
     body,
-    "\tp->on_rq = TASK_ON_RQ_MIGRATING;\n\tdeactivate_task(env->src_rq, p, DEQUEUE_NOCLOCK);\n\tset_task_cpu(p, env->dst_cpu);",
-    "\tp->on_rq = TASK_ON_RQ_MIGRATING;\n\tdeactivate_task(env->src_rq, p, DEQUEUE_NOCLOCK);\n"
+    "\t\tperf_event_task_migrate(p);\n",
+    "\t\tperf_event_task_migrate(p);\n"
     "#ifdef CONFIG_SCHED_WALT\n"
-    "\twalt_update_task_ravg(p, env->src_rq, TASK_MIGRATE, walt_ktime_clock(), 0);\n"
-    "#endif /* CONFIG_SCHED_WALT */\n"
-    "\tset_task_cpu(p, env->dst_cpu);",
-    "task migration WALT accounting"
+    "\t\twalt_fixup_busy_time(p, new_cpu);\n"
+    "#endif /* CONFIG_SCHED_WALT */\n",
+    "WALT common task migration hook"
 )
 s = s[:start] + body + s[close + 1:]
 write(p, s)
