@@ -46,6 +46,7 @@ jobs:
           KBUILD_BUILD_USER: mxguardian
           KBUILD_BUILD_HOST: github-actions
         run: |
+          set -o pipefail
           make O=out fleur_defconfig CC=clang LD=ld.lld LLVM=1 LLVM_IAS=1
           make -j2 O=out CC=clang LD=ld.lld LLVM=1 LLVM_IAS=1 CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabi- 2>&1 | tee "$RUNNER_TEMP/mx-guardian-build.log"
 
