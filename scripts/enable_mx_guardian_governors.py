@@ -57,6 +57,13 @@ for symbol, name in items:
         continue
     target = cpufreq / filename
     shutil.copy2(source, target)
+    # Android's legacy Interactive governor includes asm/cputime.h, which
+    # does not exist on this ARM64 4.19 tree. The header is unused by this
+    # implementation (idle accounting comes from linux/tick.h).
+    if name == "interactive":
+        text = target.read_text()
+        text = text.replace("#include <asm/cputime.h>\\n", "")
+        target.write_text(text)
     added.append((symbol, name, filename))
 
 k = kconfig.read_text()
