@@ -476,7 +476,7 @@ write(p, s)
 # Feed hardirq busy time into WALT, matching the MT6781 reference scheduler.
 p = "kernel/sched/cputime.c"
 s = read(p)
-s = insert_before_once(
+s = replace_once(
     s,
     '#include "sched.h"\n',
     '#include "sched.h"\n#ifdef CONFIG_SCHED_WALT\n#include "walt.h"\n#endif /* CONFIG_SCHED_WALT */\n',
