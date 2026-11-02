@@ -2,14 +2,6 @@ name: Fleux OC1 2.2GHz Hotfix (AnyKernel3)
 run-name: Fleux OC1 2.2GHz Hotfix (${{ github.event_name }})
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - .github/workflows/release-oc1-hotfix.yml
-      - scripts/build_kernel.sh
-      - scripts/apply_oc1_2200.sh
-      - scripts/anykernel_oc1_hotfix.sh
-      - docs/oc1-release-notes.md
   workflow_dispatch:
     inputs:
       source_ref:
@@ -22,7 +14,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: fleux-oc1-hotfix-release
+  group: fleux-kernel-build-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:

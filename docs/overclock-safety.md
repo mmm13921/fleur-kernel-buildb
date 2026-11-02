@@ -28,9 +28,9 @@ The source MT6359P Device Tree declares a VPROC2 upper bound of 1,193,750 µV an
 
 1. The Linux build can submit an updated PVT table through the configured SSPM interface, but the vendor SSPM firmware binary is closed and is not modified by this builder.
 2. The PLL programming code computes DDS values from requested frequencies; that does not establish vendor PLL qualification or guarantee 2.2-GHz stability.
-3. The source AP-side set_cur_volt helper is not used to rewrite the SSPM PVT table in this configured path; its fallback/debug bounds are deliberately left unchanged.
+3. OC2 raises AP-side software VPROC/VSRAM ceilings and EEM B/B_HI frequency/voltage normalization to match the requested top OPP. Physical PMIC regulator ceilings in mt6359p.dtsi are checked but not raised.
 4. Thermal trip points, emergency shutdowns, PMIC regulator limits, watchdogs and firmware safety protections are not modified.
-5. Every Beta 2 build is experimental and must be tested with a known-good boot image and recovery path.
+5. OC2 remains an experimental OPP request. Source and image audits do not establish sustained frequency or silicon stability; test only with a known-good boot image and recovery path.
 
 ## Files involved
 
