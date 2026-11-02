@@ -269,7 +269,7 @@ s = insert_before_once(
     "WALT wake accounting helper"
 )
 s = insert_before_once(s, '#include "pelt.h"\n',
-    '#include "pelt.h"\n#ifdef CONFIG_SCHED_WALT\n#include "walt.h"\n#endif\n',
+    '#ifdef CONFIG_SCHED_WALT\n#include "walt.h"\n#endif\n',
     "WALT core header include")
 s = replace_once(
     s,
@@ -304,7 +304,6 @@ def patch_new_task(body):
         "new-task WALT start marker"
     )
     return body
-s = replace_function(s, fn, patch_new_task(read(p)[read(p).find(fn):] if False else s[s.find(fn):],) if False else s, "noop") if False else s
 # Work on the function block without touching the rest of core.c.
 start = s.find(fn)
 if start < 0:
