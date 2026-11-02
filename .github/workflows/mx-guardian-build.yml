@@ -27,6 +27,7 @@ jobs:
           curl -L --fail --retry 3 "https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main-kernel-2026/clang-r563880c.tar.gz" -o "$RUNNER_TEMP/clang.tar.gz"
           tar -xzf "$RUNNER_TEMP/clang.tar.gz" -C "$RUNNER_TEMP/tc21"
           test -x "$RUNNER_TEMP/tc21/bin/clang"
+          echo "$RUNNER_TEMP/tc21/bin" >> "$GITHUB_PATH"
 
       - name: Fetch Fleux kernel and governor sources
         run: |
@@ -42,7 +43,6 @@ jobs:
         env:
           ARCH: arm64
           SUBARCH: arm64
-          PATH: ${{ runner.temp }}/tc21/bin:${{ env.PATH }}
           KBUILD_BUILD_USER: mxguardian
           KBUILD_BUILD_HOST: github-actions
         run: |
