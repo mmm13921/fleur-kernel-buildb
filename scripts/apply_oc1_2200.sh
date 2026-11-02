@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
-SRC_DIR="\${1:?Usage: apply_oc1_2200.sh <kernel-source-directory>}"
-WORKSPACE="$(cd "$(dirname "\${BASH_SOURCE[0]}")/.." && pwd)"
+SRC_DIR="${1:?Usage: apply_oc1_2200.sh <kernel-source-directory>}"
+WORKSPACE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 bash "$WORKSPACE/scripts/apply_beta2_2200.sh" "$SRC_DIR"
 
 python3 - "$SRC_DIR" <<'PY'
