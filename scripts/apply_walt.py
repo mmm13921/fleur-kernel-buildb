@@ -3,6 +3,7 @@
 
 from pathlib import Path
 import re
+import subprocess
 import sys
 
 ROOT = Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else None
@@ -699,6 +700,13 @@ for path, tokens in checks.items():
     for token in tokens:
         if token not in data:
             raise SystemExit(f"WALT: post-patch validation failed: {path} missing {token}")
+
+# Mark the new WALT translation units as intent-to-add so git diff captures
+# their complete contents in the build's source patch artifact.
+subprocess.run(
+    ["git", "-C", str(ROOT), "add", "-N", "kernel/sched/walt.c", "kernel/sched/walt.h"],
+    check=True
+)
 
 print("WALT integration source patch applied.")
 print("Scheduler: WALT window tracking + WALT task demand + WALT CPU util aggregation.")
