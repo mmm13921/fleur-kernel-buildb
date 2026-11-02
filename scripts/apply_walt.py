@@ -471,6 +471,61 @@ body = replace_once(
 s = s[:start] + body + s[close + 1:]
 write(p, s)
 
+# Feed hardirq busy time into WALT, matching the MT6781 reference scheduler.
+p = "kernel/sched/cputime.c"
+s = read(p)
+s = insert_before_once(
+    s,
+    "#ifdef CONFIG_IRQ_TIME_ACCOUNTING\n",
+    "#ifdef CONFIG_IRQ_TIME_ACCOUNTING\n"
+    "#ifdef CONFIG_SCHED_WALT\n"
+    "#include \"walt.h\"\n"
+    "#endif /* CONFIG_SCHED_WALT */\n\n",
+    "WALT IRQ accounting include"
+)
+fn = "void irqtime_account_irq(struct task_struct *curr)"
+start = s.find(fn)
+if start < 0:
+    raise SystemExit("WALT: irqtime_account_irq() not found")
+close = struct_close(s, fn, "irqtime_account_irq")
+body = s[start:close + 1]
+body = replace_once(
+    body,
+    "\ts64 delta;\n\tint cpu;\n",
+    "\ts64 delta;\n\tint cpu;\n"
+    "#ifdef CONFIG_SCHED_WALT\n"
+    "\tu64 wallclock;\n"
+    "\tbool account = true;\n"
+    "#endif /* CONFIG_SCHED_WALT */\n",
+    "WALT IRQ local state"
+)
+body = replace_once(
+    body,
+    "\tcpu = smp_processor_id();\n",
+    "\tcpu = smp_processor_id();\n"
+    "#ifdef CONFIG_SCHED_WALT\n"
+    "\twallclock = sched_clock_cpu(cpu);\n"
+    "#endif /* CONFIG_SCHED_WALT */\n",
+    "WALT IRQ wallclock"
+)
+body = replace_once(
+    body,
+    "\telse if (in_serving_softirq() && curr != this_cpu_ksoftirqd())\n"
+    "\t\tirqtime_account_delta(irqtime, delta, CPUTIME_SOFTIRQ);\n",
+    "\telse if (in_serving_softirq() && curr != this_cpu_ksoftirqd())\n"
+    "\t\tirqtime_account_delta(irqtime, delta, CPUTIME_SOFTIRQ);\n"
+    "#ifdef CONFIG_SCHED_WALT\n"
+    "\telse\n"
+    "\t\taccount = false;\n"
+    "\tif (account)\n"
+    "\t\twalt_account_irqtime(cpu, curr, delta, wallclock);\n"
+    "#endif /* CONFIG_SCHED_WALT */\n",
+    "WALT IRQ busy-time accounting"
+)
+s = s[:start] + body + s[close + 1:]
+write(p, s)
+
+
 # Build WALT as part of the scheduler.
 p = "kernel/sched/Makefile"
 s = read(p)
