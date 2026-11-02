@@ -605,19 +605,19 @@ p = "kernel/sched/cpufreq_schedutil.c"
 s = read(p)
 s = insert_before_once(
     s,
-    "struct cpufreq_governor schedutil_gov;\\n",
-    "struct cpufreq_governor schedutil_gov;\\n"
-    "#ifdef CONFIG_CPU_FREQ_GOV_WALT\\n"
-    "extern struct cpufreq_governor walt_gov;\\n"
-    "#endif /* CONFIG_CPU_FREQ_GOV_WALT */\\n",
+    "struct cpufreq_governor schedutil_gov;\n",
+    "struct cpufreq_governor schedutil_gov;\n"
+    "#ifdef CONFIG_CPU_FREQ_GOV_WALT\n"
+    "extern struct cpufreq_governor walt_gov;\n"
+    "#endif /* CONFIG_CPU_FREQ_GOV_WALT */\n",
     "WALT governor forward declaration"
 )
 old_check = "if (policy->governor != &schedutil_gov)"
 new_check = (
-    "if (policy->governor != &schedutil_gov\\n"
-    "#ifdef CONFIG_CPU_FREQ_GOV_WALT\\n"
-    "        && policy->governor != &walt_gov\\n"
-    "#endif /* CONFIG_CPU_FREQ_GOV_WALT */\\n"
+    "if (policy->governor != &schedutil_gov\n"
+    "#ifdef CONFIG_CPU_FREQ_GOV_WALT\n"
+    "        && policy->governor != &walt_gov\n"
+    "#endif /* CONFIG_CPU_FREQ_GOV_WALT */\n"
     "       )"
 )
 if s.count(old_check) != 2:
