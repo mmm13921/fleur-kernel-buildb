@@ -75,7 +75,7 @@ for symbol, name in items:
 #define trace_cpufreq_interactive_unboost(...) do { } while (0)
 """
         text = text.replace(
-            "#define CREATE_TRACE_POINTS\\n#include <trace/events/cpufreq_interactive.h>",
+            "#define CREATE_TRACE_POINTS" + chr(10) + "#include <trace/events/cpufreq_interactive.h>",
             trace_stub.rstrip(),
         )
         if "trace/events/cpufreq_interactive.h" in text or "asm/cputime.h" in text:
