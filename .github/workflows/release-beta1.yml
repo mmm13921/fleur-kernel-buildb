@@ -3,13 +3,6 @@ name: Fleux Beta 1 — 2.1 GHz experimental
 run-name: Beta 1 2.1GHz (${{ github.event_name }})
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - .github/workflows/release-beta1.yml
-      - scripts/apply_beta1_2100.sh
-      - docs/beta1-release-notes.md
   workflow_dispatch:
     inputs:
       source_ref:
