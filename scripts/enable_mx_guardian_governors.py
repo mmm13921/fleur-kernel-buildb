@@ -62,7 +62,7 @@ for symbol, name in items:
     # implementation (idle accounting comes from linux/tick.h).
     if name == "interactive":
         text = target.read_text()
-        text = text.replace("#include <asm/cputime.h>\\n", "")
+        text = text.replace("#include <asm/cputime.h>\n", "")
         target.write_text(text)
     added.append((symbol, name, filename))
 
