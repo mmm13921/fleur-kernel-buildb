@@ -26,7 +26,7 @@ jobs:
       - name: Download Fleux-matched Android Clang
         run: |
           mkdir -p "$RUNNER_TEMP/tc21"
-          curl -L --fail --retry 3 "https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main/clang-r563880c.tar.gz" -o "$RUNNER_TEMP/clang.tar.gz"
+          curl -L --fail --retry 3 "https://github.com/SA9990/Toolchain/releases/download/clang-r563880c/clang-r563880c.tar.gz" -o "$RUNNER_TEMP/clang.tar.gz"
           tar -xzf "$RUNNER_TEMP/clang.tar.gz" -C "$RUNNER_TEMP/tc21"
           test -x "$RUNNER_TEMP/tc21/bin/clang"
           echo "$RUNNER_TEMP/tc21/bin" >> "$GITHUB_PATH"
