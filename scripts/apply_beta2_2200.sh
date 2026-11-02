@@ -62,14 +62,27 @@ if "unsigned int lv = CPU_LEVEL_0;" not in selector or "return lv;" not in selec
     raise SystemExit("CPU_LEVEL_0 segment selector changed; refusing to patch")
 
 # Verify PMIC voltage-code mapping: 50000 + 105 * 625 = 115625 (10-uV units).
-platform_h = read(
-    "drivers/misc/mediatek/base/power/cpufreq_v1/src/mach/mt6781/"
-    "mtk_cpufreq_platform.h"
-)
-if "#define VPROC_BASE 50000" not in platform_h:
-    raise SystemExit("Unexpected VPROC_BASE")
-if "#define VPROC_STEP 625" not in platform_h:
-    raise SystemExit("Unexpected VPROC_STEP")
+# Resolve the conversion constants from the checked-in cpufreq headers.
+# Search the complete source subtree so a header-layout change cannot cause a
+# false failure or make the script silently use a guessed voltage encoding.
+header_root = root / "drivers/misc/mediatek/base/power/cpufreq_v1/src"
+base_headers = []
+step_headers = []
+for header in header_root.rglob("*.h"):
+    for line in header.read_text(errors="replace").splitlines():
+        fields = line.strip().split()
+        if len(fields) >= 3 and fields[0] == "#define":
+            if fields[1] == "VPROC_BASE" and fields[2] == "50000":
+                base_headers.append(header)
+            if fields[1] == "VPROC_STEP" and fields[2] == "625":
+                step_headers.append(header)
+if not base_headers or not step_headers:
+    raise SystemExit(
+        "VPROC conversion constants not found in cpufreq_v1 headers: "
+        f"base={base_headers}, step={step_headers}"
+    )
+if not set(base_headers).intersection(step_headers):
+    raise SystemExit("VPROC_BASE and VPROC_STEP are not defined together")
 if 50000 + 105 * 625 != 115625:
     raise SystemExit("Internal PMIC code calculation failed")
 
