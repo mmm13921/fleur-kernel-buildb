@@ -78,6 +78,183 @@ fi
 
 cp "$IMAGE" "$ARTIFACT_DIR/Image.gz-dtb"
 cp "$OUT_DIR/.config" "$ARTIFACT_DIR/kernel.config"
+if [[ "$BUILD_PROFILE" == "oc1" ]]; then
+  python3 - "$ARTIFACT_DIR/Image.gz-dtb" <<'PY'
+from pathlib import Path
+import struct
+import sys
+import zlib
+
+image_path = Path(sys.argv[1])
+raw = image_path.read_bytes()
+if raw[:2] != b"\x1f\x8b":
+    raise SystemExit("OC1 image audit: Image.gz-dtb does not start with gzip")
+
+decoder = zlib.decompressobj(31)
+kernel = decoder.decompress(raw)
+dtb_tail = decoder.unused_data
+if not kernel or not dtb_tail:
+    raise SystemExit("OC1 image audit: missing kernel payload or appended DTB")
+
+# Match the actual 16-entry CPU DVFS runs used by the user's table dump.
+words = memoryview(kernel)[:len(kernel) // 4 * 4].cast("I")
+runs = []
+i = 0
+while i < len(words) - 32:
+    freq = words[i]
+    if freq % 1000 == 0 and 400000 <= freq <= 3500000:
+        j = i
+        count = 0
+        previous = 1 << 30
+        while j + 2 <= len(words):
+            f = words[j]
+            v = words[j + 1]
+            if (
+                f % 1000 == 0
+                and 400000 <= f < previous
+                and 50000 <= v <= 130000
+                and v % 625 == 0
+            ):
+                previous = f
+                count += 1
+                j += 2
+            else:
+                break
+        if count >= 12:
+            runs.append((i, count))
+            i = j
+            continue
+    i += 1
+words.release()
+
+if len(runs) != 9 or any(count != 16 for _, count in runs):
+    raise SystemExit(
+        f"OC1 image audit: expected 9 complete 16-entry CPU DVFS runs, got "
+        f"{[(hex(pos * 4), count) for pos, count in runs]}"
+    )
+big_top = struct.unpack_from("<2I", kernel, runs[3][0] * 4)
+if big_top != (2200000, 115625):
+    raise SystemExit(
+        f"OC1 image audit: CPU6/CPU7 kernel OPP top is {big_top}, "
+        "expected (2200000, 115625)"
+    )
+
+# The SSPM PVT table stores the big-cluster top OPP as MHz / PMIC code /
+# post-divider / clock-divider.
+pvt_row = struct.pack("<4I", 2200, 105, 1, 1)
+if kernel.count(pvt_row) < 1:
+    raise SystemExit("OC1 image audit: 2200/105 SSPM PVT row is absent")
+
+FDT_MAGIC = b"\xd0\x0d\xfe\xed"
+
+def parse_fdt(blob, offset):
+    if blob[offset:offset + 4] != FDT_MAGIC or offset + 40 > len(blob):
+        return None
+    header = struct.unpack_from(">10I", blob, offset)
+    total = header[1]
+    off_struct = header[2]
+    off_strings = header[3]
+    size_strings = header[8]
+    size_struct = header[9]
+    if (
+        total < 40
+        or offset + total > len(blob)
+        or off_struct + size_struct > total
+        or off_strings + size_strings > total
+    ):
+        return None
+
+    strings = blob[offset + off_strings:offset + off_strings + size_strings]
+    pos = offset + off_struct
+    struct_end = pos + size_struct
+    stack = []
+    found = None
+
+    while pos + 4 <= struct_end:
+        token = struct.unpack_from(">I", blob, pos)[0]
+        pos += 4
+        if token == 1:  # FDT_BEGIN_NODE
+            end = blob.find(b"\0", pos, struct_end)
+            if end < 0:
+                raise SystemExit("OC1 image audit: malformed FDT node name")
+            name = blob[pos:end].decode("ascii", errors="replace")
+            pos = (end + 1 + 3) & ~3
+            stack.append(name)
+        elif token == 2:  # FDT_END_NODE
+            if stack:
+                stack.pop()
+        elif token == 3:  # FDT_PROP
+            if pos + 8 > struct_end:
+                raise SystemExit("OC1 image audit: truncated FDT property")
+            length, nameoff = struct.unpack_from(">II", blob, pos)
+            pos += 8
+            if pos + length > struct_end or nameoff >= len(strings):
+                raise SystemExit("OC1 image audit: invalid FDT property bounds")
+            name_end = strings.find(b"\0", nameoff)
+            if name_end < 0:
+                raise SystemExit("OC1 image audit: invalid FDT property name")
+            prop_name = strings[nameoff:name_end].decode("ascii", errors="replace")
+            value = blob[pos:pos + length]
+            if stack and stack[-1] == "dvfsp@0011bc00":
+                if found is None:
+                    found = {}
+                if prop_name in ("change_flag", "B-table"):
+                    found[prop_name] = value
+            pos = (pos + length + 3) & ~3
+        elif token == 4:  # FDT_NOP
+            continue
+        elif token == 9:  # FDT_END
+            break
+        else:
+            raise SystemExit(
+                f"OC1 image audit: unknown FDT token 0x{token:x}"
+            )
+
+    if found is not None:
+        found["_total_size"] = total
+    return found
+
+dvfsp = None
+offset = 0
+while True:
+    offset = dtb_tail.find(FDT_MAGIC, offset)
+    if offset < 0:
+        break
+    parsed = parse_fdt(dtb_tail, offset)
+    if parsed is not None and parsed.get("change_flag") is not None:
+        dvfsp = parsed
+        break
+    offset += 4
+
+if dvfsp is None:
+    raise SystemExit("OC1 image audit: MT6781 DVFSP node was not found in appended DTB")
+flag = dvfsp["change_flag"]
+if len(flag) != 4 or struct.unpack(">I", flag)[0] != 1:
+    got = struct.unpack(">I", flag)[0] if len(flag) == 4 else flag.hex()
+    raise SystemExit(
+        f"OC1 image audit: DTB DOE change_flag is {got}, expected 1"
+    )
+
+b_table = dvfsp.get("B-table")
+if b_table is None or len(b_table) != 16 * 4 * 4:
+    raise SystemExit("OC1 image audit: DTB DOE B-table is missing or not 16 rows")
+cells = struct.unpack(">64I", b_table)
+rows = [tuple(cells[i:i + 4]) for i in range(0, 64, 4)]
+if rows[0] != (2200, 105, 1, 1):
+    raise SystemExit(
+        f"OC1 image audit: DTB DOE B-table top row is {rows[0]}, "
+        "expected (2200, 105, 1, 1)"
+    )
+if any(a[0] <= b[0] for a, b in zip(rows, rows[1:])):
+    raise SystemExit("OC1 image audit: DTB DOE B-table is not strictly descending")
+
+print("OC1 IMAGE AUDIT PASSED")
+print("Kernel CPU_LEVEL_0 big-cluster top OPP: 2200000 kHz / 115625 (10-uV units)")
+print("Embedded SSPM PVT top row: 2200 MHz / PMIC code 105")
+print("Appended DTB DOE node: change_flag=1; complete 16-row B-table starts 2200/105")
+PY
+fi
+
 SOURCE_COMMIT="$(git -C "$SRC_DIR" rev-parse HEAD)"
 CLANG_VERSION="$(clang --version | head -n 1)"
 
@@ -111,6 +288,10 @@ esac
     echo "target_big_cluster_max_uv=1156250"
     echo "target_big_cluster_voltage_delta_uv=37500"
     echo "target_big_cluster_pmic_code=105"
+    if [[ "$BUILD_PROFILE" == "oc1" ]]; then
+      echo "dvfs_doe_change_flag=1"
+      echo "active_opp_validation=kernel+sspm_pvt+appended_dtb"
+    fi
     echo "thermal_and_watchdog_protections=unchanged"
     echo "vendor_sspm_firmware_binary=unchanged"
   fi
