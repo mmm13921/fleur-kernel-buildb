@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-SRC_DIR="\${1:?Usage: apply_beta2_2200.sh <kernel-source-directory>}"
+SRC_DIR="${1:?Usage: apply_beta2_2200.sh <kernel-source-directory>}"
 python3 - "$SRC_DIR" <<'PY'
 from pathlib import Path
 import sys
