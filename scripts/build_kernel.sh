@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-SOURCE_REF="\${1:-lineage-24.0}"
-BUILD_PROFILE="\${2:-baseline}"
+SOURCE_REF="${1:-lineage-24.0}"
+BUILD_PROFILE="${2:-baseline}"
 SOURCE_URL="https://gitlab.com/daliboss/fleux.git"
-WORKSPACE="\${GITHUB_WORKSPACE:-$PWD}"
-SRC_DIR="\${SRC_DIR:-$WORKSPACE/kernel-src}"
-OUT_DIR="\${OUT_DIR:-$WORKSPACE/out}"
-ARTIFACT_DIR="\${ARTIFACT_DIR:-$WORKSPACE/artifacts}"
-TOOLCHAIN_DIR="\${TOOLCHAIN_DIR:-}"
+WORKSPACE="${GITHUB_WORKSPACE:-$PWD}"
+SRC_DIR="${SRC_DIR:-$WORKSPACE/kernel-src}"
+OUT_DIR="${OUT_DIR:-$WORKSPACE/out}"
+ARTIFACT_DIR="${ARTIFACT_DIR:-$WORKSPACE/artifacts}"
+TOOLCHAIN_DIR="${TOOLCHAIN_DIR:-}"
 
 case "$SOURCE_REF" in
   ""|-*|*..*|*//*|*[!A-Za-z0-9._/-]*)
@@ -54,8 +54,8 @@ git -C "$SRC_DIR" diff --check
 export PATH="$TOOLCHAIN_DIR/bin:$PATH"
 export ARCH=arm64
 export SUBARCH=arm64
-export KBUILD_BUILD_USER="\${KBUILD_BUILD_USER:-fleux-builder}"
-export KBUILD_BUILD_HOST="\${KBUILD_BUILD_HOST:-reproducible-runner}"
+export KBUILD_BUILD_USER="${KBUILD_BUILD_USER:-fleux-builder}"
+export KBUILD_BUILD_HOST="${KBUILD_BUILD_HOST:-reproducible-runner}"
 
 make -C "$SRC_DIR" O="$OUT_DIR" fleur_defconfig \
   CC=clang LD=ld.lld LLVM=1 LLVM_IAS=1
