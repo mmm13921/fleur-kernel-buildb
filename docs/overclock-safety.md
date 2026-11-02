@@ -1,30 +1,46 @@
 # MT6781 OPP / DVFS source audit
 
-This note records source facts used to constrain the initial builder. It is not a hardware qualification report and must not be treated as proof that an overclock is stable.
+This note records source facts used to constrain the fleur kernel builder. It is not a hardware qualification report.
 
-## Verified in the Fleux source ref
+## Source and active path
 
 Source: https://gitlab.com/daliboss/fleux/-/tree/lineage-24.0
 
-- `arch/arm64/boot/dts/mediatek/mt6781.dts` defines the big-cluster `cluster1_opp` table. Its highest declared point is 2,050,000,000 Hz at 1,118,750 µV.
-- The same Device Tree describes CPU6 and CPU7 as Cortex-A75 compatible and references `cluster1_opp`.
-- `drivers/misc/mediatek/base/power/cpufreq_v1/src/mach/mt6781/mtk_cpufreq_opp_table.h` contains MT6781/MT6781T frequency and VPROC voltage macros. The SKU-specific table selection must be understood before editing values.
-- `drivers/misc/mediatek/base/power/cpufreq_v1/src/mtk_cpufreq_hybrid.c` includes SSPM IPI code paths and sends `IPI_DVFS_INIT_PTBL` via the SSPM V2 path when configured.
+- fleur_defconfig enables CONFIG_MTK_TINYSYS_SSPM_SUPPORT=y and CONFIG_MTK_TINYSYS_SSPM_V2=y.
+- mtk_cpufreq_platform.c selects CPU_LEVEL_0 in _mt_cpufreq_get_cpu_level() for this source branch.
+- mtk_cpufreq_hybrid.c constructs the PVT table from mtk_cpufreq_opp_pv_table.h and sends the initialized table through the existing SSPM/MCUPM DVFS setup path.
+- mt6781.dts declares the big-cluster cluster1_opp table, CPU6/CPU7 clock-frequency values, and DOE B-table.
+- mtk_cpufreq_opp_table.h defines CPU_LEVEL_0/MT6781T Linux OPP frequency and VPROC values.
+- mtk_cpufreq_opp_pv_table.h defines the MT6781T PVT entries including frequency, Vproc code, post-divider and clock-divider.
 
-## Consequences
+## Beta 2 top OPP
 
-1. An edit to only the Linux-side OPP list is not sufficient evidence that the running firmware-side DVFS table accepts that operating point.
-2. The existing 2.05 GHz / 1.11875 V point is a source declaration, not a statement that every retail device or silicon bin can sustain any higher point.
-3. Do not disable thermal shutdown, emergency protection, PMIC safety limits or watchdog protections to force a frequency.
-4. Keep the first build unmodified. A future experiment must be expressed as a source diff, built separately, and audited against the corresponding SSPM/MCUPM firmware protocol and PLL programming before it is considered for device testing.
-5. This builder currently does not expose tools that change OPP tables, voltage values, PLL registers, thermal limits or firmware binaries.
+The Beta 2 patch keeps the 16-entry OPP layout and changes only the top CPU_LEVEL_0 big-cluster point:
 
-## Files to inspect
+- Frequency: 2,050 MHz to 2,200 MHz.
+- VPROC: 1,118,750 µV to 1,156,250 µV (+37,500 µV).
+- PMIC voltage code: 99 to 105, where VPROC_BASE=50000 and VPROC_STEP=625.
+- Matching cluster1_opp, CPU6/CPU7 clock-frequency, DOE B-table, Linux OPP macro and SSPM PVT row are checked by the build patch.
 
-- `arch/arm64/boot/dts/mediatek/mt6781.dts`
-- `drivers/misc/mediatek/base/power/cpufreq_v1/src/mach/mt6781/mtk_cpufreq_opp_table.h`
-- `drivers/misc/mediatek/base/power/cpufreq_v1/src/mach/mt6781/mtk_cpufreq_opp_pv_table.h`
-- `drivers/misc/mediatek/base/power/cpufreq_v1/src/mtk_cpufreq_hybrid.c`
-- `arch/arm64/configs/fleur_defconfig`
+The source MT6359P Device Tree declares a VPROC2 upper bound of 1,193,750 µV and a VSRAM2 upper bound of 1,293,750 µV. The requested top VPROC point is below those regulator bounds. These are regulator ceilings, not a guarantee of safe silicon operation.
 
-The source project's own README documents Android LLVM/Clang `r563880c`, cross-compilers for AArch64/ARM32, and the expected output `out/arch/arm64/boot/Image.gz-dtb`.
+## Limitations
+
+1. The Linux build can submit an updated PVT table through the configured SSPM interface, but the vendor SSPM firmware binary is closed and is not modified by this builder.
+2. The PLL programming code computes DDS values from requested frequencies; that does not establish vendor PLL qualification or guarantee 2.2-GHz stability.
+3. The source AP-side set_cur_volt helper is not used to rewrite the SSPM PVT table in this configured path; its fallback/debug bounds are deliberately left unchanged.
+4. Thermal trip points, emergency shutdowns, PMIC regulator limits, watchdogs and firmware safety protections are not modified.
+5. Every Beta 2 build is experimental and must be tested with a known-good boot image and recovery path.
+
+## Files involved
+
+- arch/arm64/boot/dts/mediatek/mt6781.dts
+- arch/arm64/boot/dts/mediatek/mt6359p.dtsi (read-only regulator-ceiling verification)
+- arch/arm64/configs/fleur_defconfig (read-only SSPM V2 verification)
+- drivers/misc/mediatek/base/power/cpufreq_v1/src/mach/mt6781/mtk_cpufreq_platform.c (read-only CPU_LEVEL_0 verification)
+- drivers/misc/mediatek/base/power/cpufreq_v1/src/mach/mt6781/mtk_cpufreq_platform.h (read-only VPROC conversion verification)
+- drivers/misc/mediatek/base/power/cpufreq_v1/src/mach/mt6781/mtk_cpufreq_opp_table.h
+- drivers/misc/mediatek/base/power/cpufreq_v1/src/mach/mt6781/mtk_cpufreq_opp_pv_table.h
+- drivers/misc/mediatek/base/power/cpufreq_v1/src/mtk_cpufreq_hybrid.c
+
+The kernel image output is Image.gz-dtb. The Beta 2 release workflow wraps it using the pinned upstream AnyKernel3 installer framework.
