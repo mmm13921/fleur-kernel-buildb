@@ -628,8 +628,6 @@ s = s.replace(old_check, new_check)
 
 # Add a second cpufreq governor descriptor using the verified schedutil
 # callbacks. The WALT-backed cpu_util_cfs() path is active when CONFIG_SCHED_WALT.
-p = "kernel/sched/cpufreq_schedutil.c"
-s = read(p)
 descriptor = (
     "\n#ifdef CONFIG_CPU_FREQ_GOV_WALT\n"
     "struct cpufreq_governor walt_gov = {\n"
