@@ -450,6 +450,32 @@ preempt:
     # __pick_next_entity() even though the fair-class picker now uses EEVDF.
     # Removing this helper breaks the vendor scheduler translation unit.
 
+    # Fix four legacy empty-parameter definitions rejected by modern Clang
+    # under this kernel's -Werror=strict-prototypes policy.
+    fsm_i2c_path = root / "sound/soc/codecs/fs1815/fsm_i2c.c"
+    xiaomi_touch_path = root / "drivers/input/touchscreen/mediatek/xiaomi/xiaomi_touch.c"
+    fsm_i2c = fsm_i2c_path.read_text()
+    xiaomi_touch = xiaomi_touch_path.read_text()
+
+    fsm_i2c = replace_once(
+        fsm_i2c, "void fsm_mutex_lock()",
+        "void fsm_mutex_lock(void)", "fsm_mutex_lock prototype",
+    )
+    fsm_i2c = replace_once(
+        fsm_i2c, "void fsm_mutex_unlock()",
+        "void fsm_mutex_unlock(void)", "fsm_mutex_unlock prototype",
+    )
+    xiaomi_touch = replace_once(
+        xiaomi_touch, "struct class *get_xiaomi_touch_class()",
+        "struct class *get_xiaomi_touch_class(void)",
+        "get_xiaomi_touch_class prototype",
+    )
+    xiaomi_touch = replace_once(
+        xiaomi_touch, "struct device *get_xiaomi_touch_dev()",
+        "struct device *get_xiaomi_touch_dev(void)",
+        "get_xiaomi_touch_dev prototype",
+    )
+
     # The vendor mm/memory.c calls reuse_ksm_page(), but this 4.14 tree
     # has no declaration/implementation for that helper. Conservatively copy
     # KSM pages on write instead of attempting the unavailable reuse path.
