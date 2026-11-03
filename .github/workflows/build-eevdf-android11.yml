@@ -21,8 +21,8 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 180
     env:
-      SOURCE_REPO: https://github.com/daliboss/android_kernel_xiaomi_fleur.git
-      SOURCE_SHA: c96e2e448d3006c02719526e34db9b1e21b0bdd0
+      SOURCE_REPO: https://github.com/xiaomi-mt6781-fleur-dev/android_kernel_mt6781.git
+      SOURCE_SHA: 29295d3eeaa5290732b52b5800a360e86c04301e
       SOURCE_REF: fleur-r-oss
       SRC_DIR: ${{ github.workspace }}/kernel-src
       OUT_DIR: ${{ github.workspace }}/out
@@ -55,7 +55,7 @@ jobs:
           echo "$RUNNER_TEMP/clang-r563880c/bin" >> "$GITHUB_PATH"
           echo "TOOLCHAIN_DIR=$RUNNER_TEMP/clang-r563880c" >> "$GITHUB_ENV"
 
-      - name: Fetch pinned Fleur Android R kernel source
+      - name: Fetch pinned MT6781 Fleur Android R kernel source
         shell: bash
         run: |
           set -euo pipefail
@@ -67,7 +67,7 @@ jobs:
           test "$(git -C "$SRC_DIR" rev-parse HEAD)" = "$SOURCE_SHA"
           grep -q '^VERSION = 4$' "$SRC_DIR/Makefile"
           grep -q '^PATCHLEVEL = 14$' "$SRC_DIR/Makefile"
-          grep -q '^SUBLEVEL = 336$' "$SRC_DIR/Makefile"
+          grep -q '^SUBLEVEL = 343$' "$SRC_DIR/Makefile"
           test -s "$SRC_DIR/arch/arm64/configs/fleur_defconfig"
 
       - name: Apply EEVDF scheduler prototype
@@ -114,7 +114,7 @@ jobs:
           {
             echo "device=fleur"
             echo "android_base=Android 11 (R)"
-            echo "kernel_version=4.14.336"
+            echo "kernel_version=4.14.343-openela"
             echo "source_repo=$SOURCE_REPO"
             echo "source_ref=$SOURCE_REF"
             echo "source_commit=$SOURCE_SHA"
