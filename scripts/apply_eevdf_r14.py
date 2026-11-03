@@ -78,13 +78,18 @@ def replace_function(text, needle, new_function):
 def remove_function(text, needle):
     start, end = function_span(text, needle)
     line_start = text.rfind("\n", 0, start) + 1
-    prefix_start = text.rfind("\nstatic ", 0, start)
-    if prefix_start >= 0 and text[prefix_start + 1:line_start].strip() in (
+    known_prefixes = (
         "static unsigned long", "static int", "static void",
         "static struct sched_entity *",
-    ):
-        line_start = prefix_start + 1
-    return text[:line_start] + text[end:]
+    )
+    inline_prefix = text[line_start:start].strip()
+    if inline_prefix in known_prefixes:
+        start = line_start
+    else:
+        prefix_start = text.rfind("\nstatic ", 0, start)
+        if prefix_start >= 0 and text[prefix_start + 1:start].strip() in known_prefixes:
+            start = prefix_start + 1
+    return text[:start] + text[end:]
 
 def main(root):
     root = Path(root).resolve()
@@ -297,6 +302,13 @@ pick_eevdf_entity(struct cfs_rq *cfs_rq, struct sched_entity *curr)
         "\t\tif (se->deadline)\n"
         "\t\t\tse->deadline -= min_vruntime;\n",
         "task migration vruntime normalization",
+    )
+    fair = replace_once(
+        fair,
+        "\tupdate_load_set(&se->load, weight);\n\n\tif (se->on_rq)",
+        "\tupdate_load_set(&se->load, weight);\n"
+        "\tse->deadline = 0;\n\n\tif (se->on_rq)",
+        "reweight entity deadline reset",
     )
 
     # New task starts with a new virtual deadline after its placement.
