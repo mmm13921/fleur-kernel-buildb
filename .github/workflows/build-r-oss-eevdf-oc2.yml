@@ -1,5 +1,5 @@
 name: Fleur R-OSS EEVDF + OC2 2.2GHz
-run-name: Fleur R-OSS EEVDF + OC2 2.2GHz (\${{ github.event_name }})
+run-name: Fleur R-OSS EEVDF + OC2 2.2GHz (${{ github.event_name }})
 
 on:
   push:
@@ -27,9 +27,9 @@ jobs:
       SOURCE_REPO: https://github.com/xiaomi-mt6781-fleur-dev/android_kernel_mt6781.git
       SOURCE_SHA: 29295d3eeaa5290732b52b5800a360e86c04301e
       SOURCE_REF: fleur-r-oss
-      SRC_DIR: \${{ github.workspace }}/kernel-src
-      OUT_DIR: \${{ github.workspace }}/out
-      ARTIFACT_DIR: \${{ github.workspace }}/artifacts
+      SRC_DIR: ${{ github.workspace }}/kernel-src
+      OUT_DIR: ${{ github.workspace }}/out
+      ARTIFACT_DIR: ${{ github.workspace }}/artifacts
       LOCALVERSION: -EEVDF-R-OC2-2200
 
     steps:
@@ -248,7 +248,7 @@ jobs:
         with:
           tag_name: r-oss-eevdf-oc2-2200
           name: Fleur R-OSS EEVDF + OC2 2.2GHz (Experimental)
-          target_commitish: \${{ github.sha }}
+          target_commitish: ${{ github.sha }}
           prerelease: true
           make_latest: false
           body: |
