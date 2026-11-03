@@ -98,7 +98,9 @@ def main(root):
     sched_path = root / "include/linux/sched.h"
     ext4_namei_path = root / "fs/ext4/namei.c"
     mm_memory_path = root / "mm/memory.c"
-    if not fair_path.is_file() or not sched_path.is_file() or not ext4_namei_path.is_file() or not mm_memory_path.is_file():
+    sia_socket_path = root / "sound/soc/codecs/sia81xx/sia81xx_socket.c"
+    emimpu_path = root / "drivers/memory/mediatek/emimpu.c"
+    if not all(p.is_file() for p in (fair_path, sched_path, ext4_namei_path, mm_memory_path, sia_socket_path, emimpu_path)):
         fail(f"{root} is not the expected Fleur kernel source root")
 
     fair = fair_path.read_text()
@@ -456,6 +458,8 @@ preempt:
     xiaomi_touch_path = root / "drivers/input/touchscreen/mediatek/xiaomi/xiaomi_touch.c"
     fsm_i2c = fsm_i2c_path.read_text()
     xiaomi_touch = xiaomi_touch_path.read_text()
+    sia_socket = sia_socket_path.read_text()
+    emimpu = emimpu_path.read_text()
 
     fsm_i2c = replace_once(
         fsm_i2c, "void fsm_mutex_lock()",
@@ -474,6 +478,16 @@ preempt:
         xiaomi_touch, "struct device *get_xiaomi_touch_dev()",
         "struct device *get_xiaomi_touch_dev(void)",
         "get_xiaomi_touch_dev prototype",
+    )
+    sia_socket = replace_once(
+        sia_socket, "int sia81xx_open_sock_server()",
+        "int sia81xx_open_sock_server(void)",
+        "sia81xx_open_sock_server prototype",
+    )
+    emimpu = replace_once(
+        emimpu, "mpucb->owner = __builtin_return_address(0);",
+        "mpucb->owner = (unsigned long)__builtin_return_address(0);",
+        "EMI MPU owner pointer conversion",
     )
 
     # The vendor mm/memory.c calls reuse_ksm_page(), but this 4.14 tree
@@ -513,11 +527,14 @@ preempt:
     mm_memory_path.write_text(memory)
     fsm_i2c_path.write_text(fsm_i2c)
     xiaomi_touch_path.write_text(xiaomi_touch)
+    sia_socket_path.write_text(sia_socket)
+    emimpu_path.write_text(emimpu)
     print("Applied EEVDF prototype to:")
     print(" - kernel/sched/fair.c")
     print(" - include/linux/sched.h")
     print(" - mm/memory.c (KSM write-fault fallback)")
     print(" - fs1815 and Xiaomi touch strict-prototype compatibility")
+    print(" - SIA81xx strict-prototype and EMI MPU owner-pointer compatibility")
     print("Preserved WALT/HMP/EAS source hooks.")
     print("Selection uses a linear scan of eligible entities (prototype).")
 
