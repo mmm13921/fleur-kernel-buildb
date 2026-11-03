@@ -1,0 +1,139 @@
+name: Fleur Android 11 Linux 4.14 EEVDF prototype
+
+on:
+  push:
+    branches: [eevdf-android11]
+    paths:
+      - .github/workflows/build-eevdf-android11.yml
+      - scripts/apply_eevdf_r14.py
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fleur-eevdf-android11
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build Fleur R OSS 4.14 with EEVDF
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    env:
+      SOURCE_REPO: https://github.com/daliboss/android_kernel_xiaomi_fleur.git
+      SOURCE_SHA: c96e2e448d3006c02719526e34db9b1e21b0bdd0
+      SOURCE_REF: fleur-r-oss
+      SRC_DIR: ${{ github.workspace }}/kernel-src
+      OUT_DIR: ${{ github.workspace }}/out
+      ARTIFACT_DIR: ${{ github.workspace }}/artifacts
+      LOCALVERSION: -EEVDF-R14
+
+    steps:
+      - name: Check out EEVDF build scripts
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            bc bison build-essential ca-certificates curl flex git \
+            gcc-aarch64-linux-gnu gcc-arm-linux-gnueabi libelf-dev \
+            libssl-dev lld make python3 dwarves zip
+
+      - name: Install checksum-verified Android Clang r563880c
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/clang-r563880c"
+          curl --retry 5 --retry-all-errors --retry-delay 5 --connect-timeout 60 -fL \
+            "https://github.com/SA9990/Toolchain/releases/download/clang-r563880c/clang-r563880c.tar.gz" \
+            -o "$RUNNER_TEMP/clang-r563880c.tar.gz"
+          echo "57b456636aa9c3f5e159bc1dd6eddd7c6de654281cad84376e408a5d35f91bab  $RUNNER_TEMP/clang-r563880c.tar.gz" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/clang-r563880c.tar.gz" -C "$RUNNER_TEMP/clang-r563880c"
+          test -x "$RUNNER_TEMP/clang-r563880c/bin/clang"
+          echo "$RUNNER_TEMP/clang-r563880c/bin" >> "$GITHUB_PATH"
+          echo "TOOLCHAIN_DIR=$RUNNER_TEMP/clang-r563880c" >> "$GITHUB_ENV"
+
+      - name: Fetch pinned Fleur Android R kernel source
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$SRC_DIR"
+          git -C "$SRC_DIR" init
+          git -C "$SRC_DIR" remote add origin "$SOURCE_REPO"
+          git -C "$SRC_DIR" fetch --depth=1 origin "$SOURCE_SHA"
+          git -C "$SRC_DIR" checkout --detach FETCH_HEAD
+          test "$(git -C "$SRC_DIR" rev-parse HEAD)" = "$SOURCE_SHA"
+          grep -q '^VERSION = 4$' "$SRC_DIR/Makefile"
+          grep -q '^PATCHLEVEL = 14$' "$SRC_DIR/Makefile"
+          grep -q '^SUBLEVEL = 336$' "$SRC_DIR/Makefile"
+          test -s "$SRC_DIR/arch/arm64/configs/fleur_defconfig"
+
+      - name: Apply EEVDF scheduler prototype
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/apply_eevdf_r14.py "$SRC_DIR"
+          git -C "$SRC_DIR" diff --check
+          grep -q "pick_eevdf_entity" "$SRC_DIR/kernel/sched/fair.c"
+          grep -q "deadline;" "$SRC_DIR/include/linux/sched.h"
+          grep -q "walt.h" "$SRC_DIR/kernel/sched/fair.c"
+
+      - name: Configure Fleur Android 11 kernel
+        shell: bash
+        run: |
+          set -euo pipefail
+          export PATH="$TOOLCHAIN_DIR/bin:$PATH"
+          make -C "$SRC_DIR" O="$OUT_DIR" ARCH=arm64 \
+            fleur_defconfig CC=clang LD=ld.lld LLVM=1 LLVM_IAS=1 \
+            CLANG_TRIPLE=aarch64-linux-gnu- \
+            CROSS_COMPILE=aarch64-linux-gnu- \
+            CROSS_COMPILE_ARM32=arm-linux-gnueabi-
+          grep -q '^CONFIG_SCHED_WALT=y$' "$OUT_DIR/.config"
+          grep -q '^CONFIG_SCHED_HMP=y$' "$OUT_DIR/.config"
+          grep -q '^CONFIG_SCHED_TUNE=y$' "$OUT_DIR/.config"
+
+      - name: Build Image.gz-dtb
+        shell: bash
+        run: |
+          set -euo pipefail
+          export PATH="$TOOLCHAIN_DIR/bin:$PATH"
+          make -C "$SRC_DIR" -j"$(nproc)" O="$OUT_DIR" ARCH=arm64 \
+            CC=clang LD=ld.lld LLVM=1 LLVM_IAS=1 \
+            CLANG_TRIPLE=aarch64-linux-gnu- \
+            CROSS_COMPILE=aarch64-linux-gnu- \
+            CROSS_COMPILE_ARM32=arm-linux-gnueabi- \
+            LOCALVERSION="$LOCALVERSION" Image.gz-dtb
+          IMAGE="$OUT_DIR/arch/arm64/boot/Image.gz-dtb"
+          test -s "$IMAGE"
+          mkdir -p "$ARTIFACT_DIR"
+          cp "$IMAGE" "$ARTIFACT_DIR/Image.gz-dtb"
+          cp "$OUT_DIR/.config" "$ARTIFACT_DIR/kernel.config"
+          git -C "$SRC_DIR" diff --binary > "$ARTIFACT_DIR/eevdf-android11-source.patch"
+          {
+            echo "device=fleur"
+            echo "android_base=Android 11 (R)"
+            echo "kernel_version=4.14.336"
+            echo "source_repo=$SOURCE_REPO"
+            echo "source_ref=$SOURCE_REF"
+            echo "source_commit=$SOURCE_SHA"
+            echo "scheduler=EEVDF prototype"
+            echo "selection=eligible entities + earliest virtual deadline"
+            echo "rb_tree_selection=linear scan (prototype; not upstream O(log n) augmented tree)"
+            echo "preserved_vendor_scheduler=WALT,HMP,EAS, schedtune"
+            echo "toolchain=Android Clang r563880c"
+            echo "image=Image.gz-dtb"
+            echo "build_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo
+            sha256sum "$ARTIFACT_DIR/Image.gz-dtb" "$ARTIFACT_DIR/kernel.config" \
+              "$ARTIFACT_DIR/eevdf-android11-source.patch"
+          } | tee "$ARTIFACT_DIR/build-manifest.txt"
+
+      - name: Upload EEVDF kernel artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: fleur-android11-4.14-eevdf-prototype
+          path: artifacts/
+          if-no-files-found: error
+          retention-days: 30
