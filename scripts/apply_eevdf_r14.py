@@ -488,12 +488,12 @@ preempt:
     # The legacy prototype line has trailing spaces. Strip them only from this
     # edited line, retaining the file's original CRLF line endings elsewhere.
     sia_socket_raw, cleaned_sia_lines = re.subn(
-        rb'(?m)^int sia81xx_open_sock_server\\(void\\)[ \\t]+(?=\\r?$)',
+        rb'(?m)^int sia81xx_open_sock_server\(void\)[ \t]+(?=\r?$)',
         new_sia,
         sia_socket_raw,
     )
     if cleaned_sia_lines != 1:
-        fail(f\"SIA81xx trailing-whitespace cleanup: expected 1 line, fixed {cleaned_sia_lines}\")
+        fail(f"SIA81xx trailing-whitespace cleanup: expected 1 line, fixed {cleaned_sia_lines}")
     emimpu = replace_once(
         emimpu, "mpucb->owner = __builtin_return_address(0);",
         "mpucb->owner = (unsigned long)__builtin_return_address(0);",
