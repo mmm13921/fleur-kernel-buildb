@@ -454,14 +454,19 @@ preempt:
     # has no declaration/implementation for that helper. Conservatively copy
     # KSM pages on write instead of attempting the unavailable reuse path.
     memory = mm_memory_path.read_text()
-    memory, fixed_ksm = re.subn(
-        r'if \\(PageKsm\\(vmf->page\\)\\) \\{\\s*bool reused = reuse_ksm_page\\(vmf->page, vmf->vma,\\s*vmf->address\\);\\s*unlock_page\\(vmf->page\\);\\s*if \\(!reused\\)\\s*goto copy;\\s*wp_page_reuse\\(vmf\\);\\s*return VM_FAULT_WRITE;\\s*\\}',
-        'if (PageKsm(vmf->page)) {\\n\\t\\t\\tunlock_page(vmf->page);\\n\\t\\t\\tgoto copy;\\n\\t\\t}',
-        memory,
-        count=1,
-    )
-    if fixed_ksm != 1:
-        fail(f"KSM compatibility: expected one reuse_ksm_page() block, fixed {fixed_ksm}")
+    ksm_start = memory.find("\t\tif (PageKsm(vmf->page)) {")
+    ksm_end = memory.find("\t\tif (reuse_swap_page(vmf->page, &total_map_swapcount))", ksm_start)
+    if ksm_start < 0 or ksm_end < 0:
+        fail("KSM compatibility: expected write-fault KSM block not found")
+    ksm_block = memory[ksm_start:ksm_end]
+    if "reuse_ksm_page(" not in ksm_block or "VM_FAULT_WRITE" not in ksm_block:
+        fail("KSM compatibility: unexpected KSM write-fault block")
+    memory = memory[:ksm_start] + (
+        "\t\tif (PageKsm(vmf->page)) {\n"
+        "\t\t\tunlock_page(vmf->page);\n"
+        "\t\t\tgoto copy;\n"
+        "\t\t}\n"
+    ) + memory[ksm_end:]
 
     # This pinned vendor snapshot has three stale ext4_check_dir_entry() calls
     # with an obsolete trailing NULL argument. The current macro takes seven
