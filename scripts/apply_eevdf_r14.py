@@ -75,6 +75,16 @@ def replace_function(text, needle, new_function):
     start, end = function_span(text, needle)
     return text[:start] + new_function + text[end:]
 
+def remove_function(text, needle):
+    start, end = function_span(text, needle)
+    line_start = text.rfind("\\n", 0, start) + 1
+    prefix_start = text.rfind("\\nstatic ", 0, start)
+    if prefix_start >= 0 and text[prefix_start + 1:line_start].strip() == "static unsigned long":
+        line_start = prefix_start + 1
+    elif prefix_start >= 0 and text[prefix_start + 1:line_start].strip() == "static int":
+        line_start = prefix_start + 1
+    return text[:line_start] + text[end:]
+
 def main(root):
     root = Path(root).resolve()
     fair_path = root / "kernel/sched/fair.c"
@@ -312,8 +322,7 @@ pick_eevdf_entity(struct cfs_rq *cfs_rq, struct sched_entity *curr)
     fair = replace_function(
         fair,
         "pick_next_entity(struct cfs_rq",
-        r'''static struct sched_entity *
-pick_next_entity(struct cfs_rq *cfs_rq, struct sched_entity *curr)
+        r'''pick_next_entity(struct cfs_rq *cfs_rq, struct sched_entity *curr)
 {
     struct sched_entity *se;
 
@@ -327,8 +336,7 @@ pick_next_entity(struct cfs_rq *cfs_rq, struct sched_entity *curr)
     fair = replace_function(
         fair,
         "check_preempt_tick(struct cfs_rq",
-        r'''static void
-check_preempt_tick(struct cfs_rq *cfs_rq, struct sched_entity *curr)
+        r'''check_preempt_tick(struct cfs_rq *cfs_rq, struct sched_entity *curr)
 {
     unsigned long ideal_runtime, delta_exec;
     struct sched_entity *se;
@@ -362,16 +370,13 @@ check_preempt_tick(struct cfs_rq *cfs_rq, struct sched_entity *curr)
     fair = fair.replace(decl, "", 1)
 
     # Replace the full helper definitions.
-    for needle in ("wakeup_gran(struct sched_entity",):
-        a, b = function_span(fair, needle)
-        fair = fair[:a] + fair[b:]
-    a, b = function_span(fair, "wakeup_preempt_entity(struct sched_entity", fair.find("wakeup_preempt_entity(struct sched_entity") + 1)
-    fair = fair[:a] + fair[b:]
+    fair = remove_function(fair, "wakeup_gran(struct sched_entity")
+    fair = remove_function(fair, "wakeup_preempt_entity(struct sched_entity")
 
     fair = replace_function(
         fair,
         "check_preempt_wakeup(struct rq",
-        r'''static void check_preempt_wakeup(struct rq *rq, struct task_struct *p, int wake_flags)
+        r'''check_preempt_wakeup(struct rq *rq, struct task_struct *p, int wake_flags)
 {
     struct task_struct *curr = rq->curr;
     struct sched_entity *se = &curr->se, *pse = &p->se;
