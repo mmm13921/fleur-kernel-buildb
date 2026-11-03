@@ -69,6 +69,80 @@ jobs:
           grep -q '^PATCHLEVEL = 14$' "$SRC_DIR/Makefile"
           grep -q '^SUBLEVEL = 343$' "$SRC_DIR/Makefile"
           test -s "$SRC_DIR/arch/arm64/configs/fleur_defconfig"
+          # This source snapshot has a stale KernelSU Kconfig include, but no KernelSU tree.
+          # KernelSU is intentionally disabled for this Android 11 EEVDF build.
+          sed -i '/^[[:space:]]*source "drivers\/kernelsu\/Kconfig"[[:space:]]*$/d' "$SRC_DIR/drivers/Kconfig"
+          sed -i '/^CONFIG_KSU=y$/d; s/-KSU//g' "$SRC_DIR/arch/arm64/configs/fleur_defconfig"
+          ! grep -q 'drivers/kernelsu/Kconfig' "$SRC_DIR/drivers/Kconfig"
+          ! grep -q '^CONFIG_KSU=y
+      - name: Apply EEVDF scheduler prototype
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/apply_eevdf_r14.py "$SRC_DIR"
+          git -C "$SRC_DIR" diff --check
+          grep -q "pick_eevdf_entity" "$SRC_DIR/kernel/sched/fair.c"
+          grep -q "deadline;" "$SRC_DIR/include/linux/sched.h"
+          grep -q "walt.h" "$SRC_DIR/kernel/sched/fair.c"
+
+      - name: Configure Fleur Android 11 kernel
+        shell: bash
+        run: |
+          set -euo pipefail
+          export PATH="$TOOLCHAIN_DIR/bin:$PATH"
+          make -C "$SRC_DIR" O="$OUT_DIR" ARCH=arm64 \
+            fleur_defconfig CC=clang LD=ld.lld LLVM=1 LLVM_IAS=1 \
+            CLANG_TRIPLE=aarch64-linux-gnu- \
+            CROSS_COMPILE=aarch64-linux-gnu- \
+            CROSS_COMPILE_ARM32=arm-linux-gnueabi-
+          grep -q '^CONFIG_SCHED_WALT=y$' "$OUT_DIR/.config"
+          grep -q '^CONFIG_SCHED_HMP=y$' "$OUT_DIR/.config"
+          grep -q '^CONFIG_SCHED_TUNE=y$' "$OUT_DIR/.config"
+
+      - name: Build Image.gz-dtb
+        shell: bash
+        run: |
+          set -euo pipefail
+          export PATH="$TOOLCHAIN_DIR/bin:$PATH"
+          make -C "$SRC_DIR" -j"$(nproc)" O="$OUT_DIR" ARCH=arm64 \
+            CC=clang LD=ld.lld LLVM=1 LLVM_IAS=1 \
+            CLANG_TRIPLE=aarch64-linux-gnu- \
+            CROSS_COMPILE=aarch64-linux-gnu- \
+            CROSS_COMPILE_ARM32=arm-linux-gnueabi- \
+            LOCALVERSION="$LOCALVERSION" Image.gz-dtb
+          IMAGE="$OUT_DIR/arch/arm64/boot/Image.gz-dtb"
+          test -s "$IMAGE"
+          mkdir -p "$ARTIFACT_DIR"
+          cp "$IMAGE" "$ARTIFACT_DIR/Image.gz-dtb"
+          cp "$OUT_DIR/.config" "$ARTIFACT_DIR/kernel.config"
+          git -C "$SRC_DIR" diff --binary > "$ARTIFACT_DIR/eevdf-android11-source.patch"
+          {
+            echo "device=fleur"
+            echo "android_base=Android 11 (R)"
+            echo "kernel_version=4.14.343-openela"
+            echo "source_repo=$SOURCE_REPO"
+            echo "source_ref=$SOURCE_REF"
+            echo "source_commit=$SOURCE_SHA"
+            echo "scheduler=EEVDF prototype"
+            echo "selection=eligible entities + earliest virtual deadline"
+            echo "rb_tree_selection=linear scan (prototype; not upstream O(log n) augmented tree)"
+            echo "preserved_vendor_scheduler=WALT,HMP,EAS, schedtune"
+            echo "toolchain=Android Clang r563880c"
+            echo "image=Image.gz-dtb"
+            echo "build_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo
+            sha256sum "$ARTIFACT_DIR/Image.gz-dtb" "$ARTIFACT_DIR/kernel.config" \
+              "$ARTIFACT_DIR/eevdf-android11-source.patch"
+          } | tee "$ARTIFACT_DIR/build-manifest.txt"
+
+      - name: Upload EEVDF kernel artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: fleur-android11-4.14-eevdf-prototype
+          path: artifacts/
+          if-no-files-found: error
+          retention-days: 30
+ "$SRC_DIR/arch/arm64/configs/fleur_defconfig"
 
       - name: Apply EEVDF scheduler prototype
         shell: bash
