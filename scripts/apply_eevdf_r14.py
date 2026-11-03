@@ -100,6 +100,9 @@ def main(root):
     mm_memory_path = root / "mm/memory.c"
     sia_socket_path = root / "sound/soc/codecs/sia81xx/sia81xx_socket.c"
     emimpu_path = root / "drivers/memory/mediatek/emimpu.c"
+    cmdq_helper_path = root / "drivers/soc/mediatek/mtk-cmdq-helper.c"
+    mfg_counter_path = root / "drivers/misc/mediatek/gpu/gpu_mali/mali_valhall/mali-r25p0/drivers/gpu/arm/midgard/platform/mtk_platform_common/mtk_mfg_counter.c"
+    ov64b40_path = root / "drivers/misc/mediatek/imgsensor/src/fleur/ov64b40_main_aac_mipi_raw/ov64b40_main_aac_mipi_raw.c"
     if not all(p.is_file() for p in (fair_path, sched_path, ext4_namei_path, mm_memory_path, sia_socket_path, emimpu_path)):
         fail(f"{root} is not the expected Fleur kernel source root")
 
@@ -460,6 +463,9 @@ preempt:
     xiaomi_touch = xiaomi_touch_path.read_text()
     sia_socket_raw = sia_socket_path.read_bytes()
     emimpu = emimpu_path.read_text()
+    cmdq_helper = cmdq_helper_path.read_text()
+    mfg_counter = mfg_counter_path.read_text()
+    ov64b40 = ov64b40_path.read_text()
 
     fsm_i2c = replace_once(
         fsm_i2c, "void fsm_mutex_lock()",
@@ -491,6 +497,22 @@ preempt:
         emimpu, "mpucb->owner = __builtin_return_address(0);",
         "mpucb->owner = (unsigned long)__builtin_return_address(0);",
         "EMI MPU owner pointer conversion",
+    )
+
+    # Fix vendor CMDQ allocation failure: this function returns a pointer.
+    cmdq_helper = replace_once(
+        cmdq_helper,
+        "return -ENOMEM;\n\n\t\tbuf = list_last_entry(&pkt->buf, typeof(*buf), list_entry);",
+        "return NULL;\n\n\t\tbuf = list_last_entry(&pkt->buf, typeof(*buf), list_entry);",
+        "CMDQ pointer-return error path",
+    )
+    mfg_counter = replace_once(
+        mfg_counter, "int gator_gpu_pmu_init()",
+        "int gator_gpu_pmu_init(void)", "Mali PMU strict prototype",
+    )
+    ov64b40 = replace_once(
+        ov64b40, "static void normal_video_setting()",
+        "static void normal_video_setting(void)", "OV64B40 strict prototype",
     )
 
     # The vendor mm/memory.c calls reuse_ksm_page(), but this 4.14 tree
@@ -532,6 +554,9 @@ preempt:
     xiaomi_touch_path.write_text(xiaomi_touch)
     sia_socket_path.write_bytes(sia_socket_raw)
     emimpu_path.write_text(emimpu)
+    cmdq_helper_path.write_text(cmdq_helper)
+    mfg_counter_path.write_text(mfg_counter)
+    ov64b40_path.write_text(ov64b40)
     print("Applied EEVDF prototype to:")
     print(" - kernel/sched/fair.c")
     print(" - include/linux/sched.h")
