@@ -500,12 +500,15 @@ preempt:
     )
 
     # Fix vendor CMDQ allocation failure: this function returns a pointer.
-    cmdq_helper = replace_once(
-        cmdq_helper,
-        "return -ENOMEM;\n\n\t\tbuf = list_last_entry(&pkt->buf, typeof(*buf), list_entry);",
-        "return NULL;\n\n\t\tbuf = list_last_entry(&pkt->buf, typeof(*buf), list_entry);",
+    cmdq_va_start, cmdq_va_end = function_span(
+        cmdq_helper, "cmdq_pkt_get_curr_buf_va(struct cmdq_pkt"
+    )
+    cmdq_va = cmdq_helper[cmdq_va_start:cmdq_va_end]
+    cmdq_va = replace_once(
+        cmdq_va, "return -ENOMEM;", "return NULL;",
         "CMDQ pointer-return error path",
     )
+    cmdq_helper = cmdq_helper[:cmdq_va_start] + cmdq_va + cmdq_helper[cmdq_va_end:]
     mfg_counter = replace_once(
         mfg_counter, "int gator_gpu_pmu_init()",
         "int gator_gpu_pmu_init(void)", "Mali PMU strict prototype",
