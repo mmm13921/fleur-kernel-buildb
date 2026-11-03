@@ -136,6 +136,58 @@ jobs:
               "$ARTIFACT_DIR/eevdf-android11-source.patch"
           } | tee "$ARTIFACT_DIR/build-manifest.txt"
 
+      - name: Package flashable AnyKernel3 ZIP
+        shell: bash
+        run: |
+          set -euo pipefail
+          AK3_DIR="$RUNNER_TEMP/AnyKernel3"
+          git clone --filter=blob:none https://github.com/osm0sis/AnyKernel3.git "$AK3_DIR"
+          git -C "$AK3_DIR" checkout --detach 41f04bdb4ee30a44e429c2c1131d5e8bb32b15f1
+          rm -rf "$AK3_DIR/.git" "$AK3_DIR/README.md"
+          cp "$ARTIFACT_DIR/Image.gz-dtb" "$AK3_DIR/Image.gz-dtb"
+          cat > "$AK3_DIR/anykernel.sh" <<'AK3'
+          ### AnyKernel3 Ramdisk Mod Script
+          ## osm0sis @ xda-developers
+
+          properties() { '
+          kernel.string=Fleur EEVDF Prototype 4.14.343
+          do.devicecheck=1
+          do.modules=0
+          do.systemless=1
+          do.cleanup=1
+          do.cleanuponabort=0
+          device.name1=fleur
+          device.name2=miel
+          device.name3=
+          device.name4=
+          device.name5=
+          supported.versions=
+          supported.patchlevels=
+          supported.vendorpatchlevels=
+          '; }
+
+          BLOCK=/dev/block/bootdevice/by-name/boot;
+          IS_SLOT_DEVICE=1;
+          RAMDISK_COMPRESSION=auto;
+          PATCH_VBMETA_FLAG=auto;
+
+          . tools/ak3-core.sh;
+
+          # Kernel-only update: preserve the existing ramdisk and flash the new kernel.
+          split_boot;
+          flash_boot;
+          AK3
+          printf '%s\n' "Fleur Android 11 / Linux 4.14.343" "EEVDF scheduler prototype; WALT/HMP/EAS retained; KernelSU disabled" > "$AK3_DIR/version"
+          (
+            cd "$AK3_DIR"
+            zip -r9 "$ARTIFACT_DIR/Fleur-EEVDF-Android11-4.14.343-AnyKernel3.zip" . \
+              -x '.git/*' 'README.md' '*placeholder*'
+          )
+          unzip -t "$ARTIFACT_DIR/Fleur-EEVDF-Android11-4.14.343-AnyKernel3.zip"
+          unzip -l "$ARTIFACT_DIR/Fleur-EEVDF-Android11-4.14.343-AnyKernel3.zip" | grep -q 'anykernel.sh'
+          unzip -l "$ARTIFACT_DIR/Fleur-EEVDF-Android11-4.14.343-AnyKernel3.zip" | grep -q 'Image.gz-dtb'
+          sha256sum "$ARTIFACT_DIR/Fleur-EEVDF-Android11-4.14.343-AnyKernel3.zip" >> "$ARTIFACT_DIR/build-manifest.txt"
+
       - name: Upload EEVDF kernel artifact
         uses: actions/upload-artifact@v4
         with:
@@ -159,7 +211,7 @@ jobs:
             - KernelSU disabled
             - Toolchain: Android Clang r563880c
 
-            This is a raw `Image.gz-dtb`, not an AnyKernel3 flashable ZIP. Back up the stock boot image before testing.
-          files: artifacts/Image.gz-dtb
+            Flashable AnyKernel3 ZIP; kernel-only update preserving the existing ramdisk. Device checks: fleur / miel; boot partition with active-slot suffix. Back up the stock boot image and ensure your ROM is compatible before testing.
+          files: artifacts/Fleur-EEVDF-Android11-4.14.343-AnyKernel3.zip
           fail_on_unmatched_files: true
           make_latest: true
