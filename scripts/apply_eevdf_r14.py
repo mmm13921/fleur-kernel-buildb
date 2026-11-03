@@ -79,9 +79,10 @@ def remove_function(text, needle):
     start, end = function_span(text, needle)
     line_start = text.rfind("\n", 0, start) + 1
     prefix_start = text.rfind("\nstatic ", 0, start)
-    if prefix_start >= 0 and text[prefix_start + 1:line_start].strip() == "static unsigned long":
-        line_start = prefix_start + 1
-    elif prefix_start >= 0 and text[prefix_start + 1:line_start].strip() == "static int":
+    if prefix_start >= 0 and text[prefix_start + 1:line_start].strip() in (
+        "static unsigned long", "static int", "static void",
+        "static struct sched_entity *",
+    ):
         line_start = prefix_start + 1
     return text[:line_start] + text[end:]
 
@@ -429,6 +430,10 @@ preempt:
 
     if "wakeup_preempt_entity(" in fair or "wakeup_gran(" in fair:
         fail("obsolete CFS wakeup-preemption helper still referenced")
+
+    # These CFS-only helpers were used solely by the removed buddy picker.
+    fair = remove_function(fair, "__pick_next_entity(struct sched_entity")
+    fair = remove_function(fair, "set_last_buddy(struct sched_entity")
 
     fair_path.write_text(fair)
     sched_path.write_text(sched)
