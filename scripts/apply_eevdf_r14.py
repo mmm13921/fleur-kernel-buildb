@@ -7,6 +7,7 @@ functional backport prototype, not the upstream augmented-rbtree O(log n)
 implementation. Do not ship/flash without boot and scheduler testing.
 """
 from pathlib import Path
+import re
 import sys
 
 def fail(msg):
@@ -95,7 +96,8 @@ def main(root):
     root = Path(root).resolve()
     fair_path = root / "kernel/sched/fair.c"
     sched_path = root / "include/linux/sched.h"
-    if not fair_path.is_file() or not sched_path.is_file():
+    ext4_namei_path = root / "fs/ext4/namei.c"
+    if not fair_path.is_file() or not sched_path.is_file() or not ext4_namei_path.is_file():
         fail(f"{root} is not the expected Fleur kernel source root")
 
     fair = fair_path.read_text()
@@ -443,12 +445,26 @@ preempt:
     if "wakeup_preempt_entity(" in fair or "wakeup_gran(" in fair:
         fail("obsolete CFS wakeup-preemption helper still referenced")
 
-    # These CFS-only helpers were used solely by the removed buddy picker.
-    fair = remove_function(fair, "__pick_next_entity(struct sched_entity")
-    fair = remove_function(fair, "set_last_buddy(struct sched_entity")
+    # Keep vendor-visible CFS helpers: MediaTek EAS/HMP still call
+    # __pick_next_entity() even though the fair-class picker now uses EEVDF.
+    # Removing this helper breaks the vendor scheduler translation unit.
+
+    # This pinned vendor snapshot has three stale ext4_check_dir_entry() calls
+    # with an obsolete trailing NULL argument. The current macro takes seven
+    # arguments; drop only those three obsolete final arguments.
+    namei = ext4_namei_path.read_text()
+    namei, fixed_ext4_calls = re.subn(
+        r'(ext4_check_dir_entry\\([^;]*?),\\s*NULL\\)',
+        r'\\1)',
+        namei,
+        flags=re.S,
+    )
+    if fixed_ext4_calls != 3:
+        fail(f"ext4 compatibility: expected 3 obsolete NULL arguments, fixed {fixed_ext4_calls}")
 
     fair_path.write_text(fair)
     sched_path.write_text(sched)
+    ext4_namei_path.write_text(namei)
     print("Applied EEVDF prototype to:")
     print(" - kernel/sched/fair.c")
     print(" - include/linux/sched.h")
