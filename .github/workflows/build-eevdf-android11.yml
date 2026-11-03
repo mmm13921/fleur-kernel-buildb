@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: fleur-eevdf-android11
@@ -143,3 +143,23 @@ jobs:
           path: artifacts/
           if-no-files-found: error
           retention-days: 30
+
+      - name: Publish kernel image to GitHub Releases
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: eevdf-android11-4.14.343-prototype
+          name: Fleur Android 11 EEVDF prototype (4.14.343)
+          target_commitish: ${{ github.sha }}
+          body: |
+            Automated build for Redmi Note 11S 4G / POCO M4 Pro 4G (fleur).
+
+            - Base: Android 11, Linux 4.14.343
+            - Scheduler: EEVDF prototype (linear-scan selection; not upstream O(log n) implementation)
+            - WALT, HMP, EAS and schedtune retained
+            - KernelSU disabled
+            - Toolchain: Android Clang r563880c
+
+            This is a raw `Image.gz-dtb`, not an AnyKernel3 flashable ZIP. Back up the stock boot image before testing.
+          files: artifacts/Image.gz-dtb
+          fail_on_unmatched_files: true
+          make_latest: true
