@@ -97,7 +97,8 @@ def main(root):
     fair_path = root / "kernel/sched/fair.c"
     sched_path = root / "include/linux/sched.h"
     ext4_namei_path = root / "fs/ext4/namei.c"
-    if not fair_path.is_file() or not sched_path.is_file() or not ext4_namei_path.is_file():
+    mm_memory_path = root / "mm/memory.c"
+    if not fair_path.is_file() or not sched_path.is_file() or not ext4_namei_path.is_file() or not mm_memory_path.is_file():
         fail(f"{root} is not the expected Fleur kernel source root")
 
     fair = fair_path.read_text()
@@ -449,6 +450,19 @@ preempt:
     # __pick_next_entity() even though the fair-class picker now uses EEVDF.
     # Removing this helper breaks the vendor scheduler translation unit.
 
+    # The vendor mm/memory.c calls reuse_ksm_page(), but this 4.14 tree
+    # has no declaration/implementation for that helper. Conservatively copy
+    # KSM pages on write instead of attempting the unavailable reuse path.
+    memory = mm_memory_path.read_text()
+    memory, fixed_ksm = re.subn(
+        r'if \\(PageKsm\\(vmf->page\\)\\) \\{\\s*bool reused = reuse_ksm_page\\(vmf->page, vmf->vma,\\s*vmf->address\\);\\s*unlock_page\\(vmf->page\\);\\s*if \\(!reused\\)\\s*goto copy;\\s*wp_page_reuse\\(vmf\\);\\s*return VM_FAULT_WRITE;\\s*\\}',
+        'if (PageKsm(vmf->page)) {\\n\\t\\t\\tunlock_page(vmf->page);\\n\\t\\t\\tgoto copy;\\n\\t\\t}',
+        memory,
+        count=1,
+    )
+    if fixed_ksm != 1:
+        fail(f"KSM compatibility: expected one reuse_ksm_page() block, fixed {fixed_ksm}")
+
     # This pinned vendor snapshot has three stale ext4_check_dir_entry() calls
     # with an obsolete trailing NULL argument. The current macro takes seven
     # arguments; drop only those three obsolete final arguments.
@@ -465,9 +479,11 @@ preempt:
     fair_path.write_text(fair)
     sched_path.write_text(sched)
     ext4_namei_path.write_text(namei)
+    mm_memory_path.write_text(memory)
     print("Applied EEVDF prototype to:")
     print(" - kernel/sched/fair.c")
     print(" - include/linux/sched.h")
+    print(" - mm/memory.c (KSM write-fault fallback)")
     print("Preserved WALT/HMP/EAS source hooks.")
     print("Selection uses a linear scan of eligible entities (prototype).")
 
