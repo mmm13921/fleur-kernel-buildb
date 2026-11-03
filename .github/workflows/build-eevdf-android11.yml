@@ -80,7 +80,7 @@ jobs:
         run: |
           set -euo pipefail
           python3 scripts/apply_eevdf_r14.py "$SRC_DIR"
-          git -C "$SRC_DIR" diff --check
+          git -C "$SRC_DIR" -c core.whitespace=cr-at-eol diff --check
           grep -q "pick_eevdf_entity" "$SRC_DIR/kernel/sched/fair.c"
           grep -q "deadline;" "$SRC_DIR/include/linux/sched.h"
           grep -q "walt.h" "$SRC_DIR/kernel/sched/fair.c"
