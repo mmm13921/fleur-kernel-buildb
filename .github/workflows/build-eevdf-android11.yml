@@ -149,6 +149,9 @@ jobs:
           ### AnyKernel3 Ramdisk Mod Script
           ## osm0sis @ xda-developers
 
+          ### AnyKernel3 Ramdisk Mod Script
+          ## osm0sis @ xda-developers
+
           properties() { '
           kernel.string=Fleur EEVDF Prototype 4.14.343
           do.devicecheck=1
@@ -161,21 +164,26 @@ jobs:
           device.name3=
           device.name4=
           device.name5=
-          supported.versions=
+          supported.versions=11.0-14.0
           supported.patchlevels=
           supported.vendorpatchlevels=
           '; }
 
-          BLOCK=/dev/block/bootdevice/by-name/boot;
-          IS_SLOT_DEVICE=1;
-          RAMDISK_COMPRESSION=auto;
-          PATCH_VBMETA_FLAG=auto;
+          attributes() {
+          set_perm_recursive 0 0 755 644 $ramdisk/*;
+          set_perm_recursive 0 0 750 750 $ramdisk/init* $ramdisk/sbin;
+          }
 
-          . tools/ak3-core.sh;
+          block=/dev/block/by-name/boot;
+          is_slot_device=1;
+          ramdisk_compression=auto;
+          patch_vbmeta_flag=auto;
 
-          # Kernel-only update: preserve the existing ramdisk and flash the new kernel.
-          split_boot;
-          flash_boot;
+          . tools/ak3-core.sh && attributes;
+
+          # Match the known-working Fleur AnyKernel3 installer structure.
+          dump_boot;
+          write_boot;
           AK3
           printf '%s\n' "Fleur Android 11 / Linux 4.14.343" "EEVDF scheduler prototype; WALT/HMP/EAS retained; KernelSU disabled" > "$AK3_DIR/version"
           (
