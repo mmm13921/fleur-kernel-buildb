@@ -77,8 +77,8 @@ def replace_function(text, needle, new_function):
 
 def remove_function(text, needle):
     start, end = function_span(text, needle)
-    line_start = text.rfind("\\n", 0, start) + 1
-    prefix_start = text.rfind("\\nstatic ", 0, start)
+    line_start = text.rfind("\n", 0, start) + 1
+    prefix_start = text.rfind("\nstatic ", 0, start)
     if prefix_start >= 0 and text[prefix_start + 1:line_start].strip() == "static unsigned long":
         line_start = prefix_start + 1
     elif prefix_start >= 0 and text[prefix_start + 1:line_start].strip() == "static int":
