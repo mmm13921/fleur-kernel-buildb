@@ -517,6 +517,7 @@ preempt:
     print(" - kernel/sched/fair.c")
     print(" - include/linux/sched.h")
     print(" - mm/memory.c (KSM write-fault fallback)")
+    print(" - fs1815 and Xiaomi touch strict-prototype compatibility")
     print("Preserved WALT/HMP/EAS source hooks.")
     print("Selection uses a linear scan of eligible entities (prototype).")
 
