@@ -103,6 +103,7 @@ def main(root):
     cmdq_helper_path = root / "drivers/soc/mediatek/mtk-cmdq-helper.c"
     mfg_counter_path = root / "drivers/misc/mediatek/gpu/gpu_mali/mali_valhall/mali-r25p0/drivers/gpu/arm/midgard/platform/mtk_platform_common/mtk_mfg_counter.c"
     ov64b40_path = root / "drivers/misc/mediatek/imgsensor/src/fleur/ov64b40_main_aac_mipi_raw/ov64b40_main_aac_mipi_raw.c"
+    ov64b40_ofilm_path = root / "drivers/misc/mediatek/imgsensor/src/fleur/ov64b40_main_ofilm_mipi_raw/ov64b40_main_ofilm_mipi_raw.c"
     if not all(p.is_file() for p in (fair_path, sched_path, ext4_namei_path, mm_memory_path, sia_socket_path, emimpu_path)):
         fail(f"{root} is not the expected Fleur kernel source root")
 
@@ -466,6 +467,7 @@ preempt:
     cmdq_helper = cmdq_helper_path.read_text()
     mfg_counter = mfg_counter_path.read_text()
     ov64b40 = ov64b40_path.read_text()
+    ov64b40_ofilm = ov64b40_ofilm_path.read_text()
 
     fsm_i2c = replace_once(
         fsm_i2c, "void fsm_mutex_lock()",
@@ -517,6 +519,10 @@ preempt:
         ov64b40, "static void normal_video_setting()",
         "static void normal_video_setting(void)", "OV64B40 strict prototype",
     )
+    ov64b40_ofilm = replace_once(
+        ov64b40_ofilm, "static void normal_video_setting()",
+        "static void normal_video_setting(void)", "OV64B40 OFILM strict prototype",
+    )
 
     # The vendor mm/memory.c calls reuse_ksm_page(), but this 4.14 tree
     # has no declaration/implementation for that helper. Conservatively copy
@@ -560,6 +566,7 @@ preempt:
     cmdq_helper_path.write_text(cmdq_helper)
     mfg_counter_path.write_text(mfg_counter)
     ov64b40_path.write_text(ov64b40)
+    ov64b40_ofilm_path.write_text(ov64b40_ofilm)
     print("Applied EEVDF prototype to:")
     print(" - kernel/sched/fair.c")
     print(" - include/linux/sched.h")
