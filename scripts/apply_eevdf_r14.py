@@ -532,11 +532,13 @@ preempt:
         "static void normal_video_setting(void)", "OV64B40 SUNNY strict prototype",
     )
     perf_tracker = replace_once(
-        perf_tracker, "get_cur_vcore_uv()", "get_cur_vcore_uv(void)",
+        perf_tracker, "int __attribute__((weak)) get_cur_vcore_uv()",
+        "int __attribute__((weak)) get_cur_vcore_uv(void)",
         "MediaTek perf tracker vcore strict prototype",
     )
     perf_tracker = replace_once(
-        perf_tracker, "get_cur_ddr_khz()", "get_cur_ddr_khz(void)",
+        perf_tracker, "int __attribute__((weak)) get_cur_ddr_khz()",
+        "int __attribute__((weak)) get_cur_ddr_khz(void)",
         "MediaTek perf tracker DDR strict prototype",
     )
 
