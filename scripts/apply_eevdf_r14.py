@@ -105,6 +105,7 @@ def main(root):
     ov64b40_path = root / "drivers/misc/mediatek/imgsensor/src/fleur/ov64b40_main_aac_mipi_raw/ov64b40_main_aac_mipi_raw.c"
     ov64b40_ofilm_path = root / "drivers/misc/mediatek/imgsensor/src/fleur/ov64b40_main_ofilm_mipi_raw/ov64b40_main_ofilm_mipi_raw.c"
     ov64b40_sunny_path = root / "drivers/misc/mediatek/imgsensor/src/fleur/ov64b40_main_sunny_mipi_raw/ov64b40_main_sunny_mipi_raw.c"
+    perf_tracker_path = root / "drivers/misc/mediatek/perf/perf_tracker.c"
     if not all(p.is_file() for p in (fair_path, sched_path, ext4_namei_path, mm_memory_path, sia_socket_path, emimpu_path)):
         fail(f"{root} is not the expected Fleur kernel source root")
 
@@ -470,6 +471,7 @@ preempt:
     ov64b40 = ov64b40_path.read_text()
     ov64b40_ofilm = ov64b40_ofilm_path.read_text()
     ov64b40_sunny = ov64b40_sunny_path.read_text()
+    perf_tracker = perf_tracker_path.read_text()
 
     fsm_i2c = replace_once(
         fsm_i2c, "void fsm_mutex_lock()",
@@ -529,6 +531,14 @@ preempt:
         ov64b40_sunny, "static void normal_video_setting()",
         "static void normal_video_setting(void)", "OV64B40 SUNNY strict prototype",
     )
+    perf_tracker = replace_once(
+        perf_tracker, "get_cur_vcore_uv()", "get_cur_vcore_uv(void)",
+        "MediaTek perf tracker vcore strict prototype",
+    )
+    perf_tracker = replace_once(
+        perf_tracker, "get_cur_ddr_khz()", "get_cur_ddr_khz(void)",
+        "MediaTek perf tracker DDR strict prototype",
+    )
 
     # The vendor mm/memory.c calls reuse_ksm_page(), but this 4.14 tree
     # has no declaration/implementation for that helper. Conservatively copy
@@ -574,6 +584,7 @@ preempt:
     ov64b40_path.write_text(ov64b40)
     ov64b40_ofilm_path.write_text(ov64b40_ofilm)
     ov64b40_sunny_path.write_text(ov64b40_sunny)
+    perf_tracker_path.write_text(perf_tracker)
     print("Applied EEVDF prototype to:")
     print(" - kernel/sched/fair.c")
     print(" - include/linux/sched.h")
