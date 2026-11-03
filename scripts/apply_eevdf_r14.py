@@ -454,8 +454,8 @@ preempt:
     # arguments; drop only those three obsolete final arguments.
     namei = ext4_namei_path.read_text()
     namei, fixed_ext4_calls = re.subn(
-        r'(ext4_check_dir_entry\\([^;]*?),\\s*NULL\\)',
-        r'\\1)',
+        r'(ext4_check_dir_entry\([^;]*?),\s*NULL\)',
+        r'\1)',
         namei,
         flags=re.S,
     )
