@@ -511,6 +511,8 @@ preempt:
     sched_path.write_text(sched)
     ext4_namei_path.write_text(namei)
     mm_memory_path.write_text(memory)
+    fsm_i2c_path.write_text(fsm_i2c)
+    xiaomi_touch_path.write_text(xiaomi_touch)
     print("Applied EEVDF prototype to:")
     print(" - kernel/sched/fair.c")
     print(" - include/linux/sched.h")
