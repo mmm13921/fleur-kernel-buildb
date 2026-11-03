@@ -458,7 +458,7 @@ preempt:
     xiaomi_touch_path = root / "drivers/input/touchscreen/mediatek/xiaomi/xiaomi_touch.c"
     fsm_i2c = fsm_i2c_path.read_text()
     xiaomi_touch = xiaomi_touch_path.read_text()
-    sia_socket = sia_socket_path.read_text()
+    sia_socket_raw = sia_socket_path.read_bytes()
     emimpu = emimpu_path.read_text()
 
     fsm_i2c = replace_once(
@@ -479,11 +479,12 @@ preempt:
         "struct device *get_xiaomi_touch_dev(void)",
         "get_xiaomi_touch_dev prototype",
     )
-    sia_socket = replace_once(
-        sia_socket, "int sia81xx_open_sock_server()",
-        "int sia81xx_open_sock_server(void)",
-        "sia81xx_open_sock_server prototype",
-    )
+    # Preserve this vendor file's CRLF line endings and existing trailing whitespace.
+    old_sia = b"int sia81xx_open_sock_server()"
+    new_sia = b"int sia81xx_open_sock_server(void)"
+    if sia_socket_raw.count(old_sia) != 1:
+        fail("sia81xx_open_sock_server prototype: expected exactly one anchor")
+    sia_socket_raw = sia_socket_raw.replace(old_sia, new_sia, 1)
     emimpu = replace_once(
         emimpu, "mpucb->owner = __builtin_return_address(0);",
         "mpucb->owner = (unsigned long)__builtin_return_address(0);",
@@ -527,7 +528,7 @@ preempt:
     mm_memory_path.write_text(memory)
     fsm_i2c_path.write_text(fsm_i2c)
     xiaomi_touch_path.write_text(xiaomi_touch)
-    sia_socket_path.write_text(sia_socket)
+    sia_socket_path.write_bytes(sia_socket_raw)
     emimpu_path.write_text(emimpu)
     print("Applied EEVDF prototype to:")
     print(" - kernel/sched/fair.c")
