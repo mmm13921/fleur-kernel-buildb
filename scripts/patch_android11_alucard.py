@@ -62,8 +62,32 @@ def main() -> None:
         makefile_path.write_text("".join(lines))
         makefile = "".join(lines)
 
+    # This public R-OSS tree references a KernelSU Kconfig file that is absent
+    # from the checked-out tree. KernelSU is not needed for this governor test.
+    drivers_kconfig_path = root / "drivers/Kconfig"
+    drivers_kconfig = drivers_kconfig_path.read_text()
+    ksu_source = 'source "drivers/kernelsu/Kconfig"'
+    if ksu_source in drivers_kconfig:
+        if drivers_kconfig.count(ksu_source) != 1:
+            raise SystemExit("Alucard patch: KernelSU Kconfig source line is not unique")
+        drivers_kconfig = drivers_kconfig.replace(ksu_source + "\\n", "", 1)
+        drivers_kconfig_path.write_text(drivers_kconfig)
+
+    drivers_makefile_path = root / "drivers/Makefile"
+    drivers_makefile = drivers_makefile_path.read_text()
+    drivers_makefile = drivers_makefile.replace(
+        "obj-$(CONFIG_KSU) += kernelsu/\\n", ""
+    )
+    drivers_makefile_path.write_text(drivers_makefile)
+
     defconfig_path = root / "arch/arm64/configs/fleur_defconfig"
     defconfig = defconfig_path.read_text()
+    defconfig = re.sub(r"(?m)^CONFIG_KSU=y\\n", "# CONFIG_KSU is not set\\n", defconfig)
+    defconfig = defconfig.replace(
+        'CONFIG_LOCALVERSION="-hiiragi.rev_2-KSU"',
+        'CONFIG_LOCALVERSION="-android11-alucard"',
+    )
+    defconfig_path.write_text(defconfig)
     config_line = "CONFIG_CPU_FREQ_GOV_ALUCARD=y"
     if config_line not in defconfig:
         defconfig = replace_once(
