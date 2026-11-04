@@ -50,15 +50,17 @@ def main() -> None:
     makefile = makefile_path.read_text()
     obj_line = "obj-$(CONFIG_CPU_FREQ_GOV_ALUCARD)\t+= cpufreq_alucard.o"
     if obj_line not in makefile:
-        interactive = re.search(
-            r"(?m)^obj-\\$\\(CONFIG_CPU_FREQ_GOV_INTERACTIVE\\)[ \\t]*\\+= cpufreq_interactive\\.o[ \\t]*$",
-            makefile,
-        )
-        if not interactive:
-            raise SystemExit("Alucard patch: Interactive Makefile entry not found")
-        insert_at = interactive.end()
-        makefile = makefile[:insert_at] + "\n" + obj_line + makefile[insert_at:]
-        makefile_path.write_text(makefile)
+        lines = makefile.splitlines(keepends=True)
+        matches = [
+            i for i, line in enumerate(lines)
+            if line.strip().startswith("obj-$(CONFIG_CPU_FREQ_GOV_INTERACTIVE)")
+            and "cpufreq_interactive.o" in line
+        ]
+        if len(matches) != 1:
+            raise SystemExit("Alucard patch: Interactive Makefile entry not unique")
+        lines.insert(matches[0] + 1, obj_line + "\n")
+        makefile_path.write_text("".join(lines))
+        makefile = "".join(lines)
 
     defconfig_path = root / "arch/arm64/configs/fleur_defconfig"
     defconfig = defconfig_path.read_text()
