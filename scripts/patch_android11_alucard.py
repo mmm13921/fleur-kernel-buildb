@@ -70,19 +70,19 @@ def main() -> None:
     if ksu_source in drivers_kconfig:
         if drivers_kconfig.count(ksu_source) != 1:
             raise SystemExit("Alucard patch: KernelSU Kconfig source line is not unique")
-        drivers_kconfig = drivers_kconfig.replace(ksu_source + "\\n", "", 1)
+        drivers_kconfig = drivers_kconfig.replace(ksu_source + "\n", "", 1)
         drivers_kconfig_path.write_text(drivers_kconfig)
 
     drivers_makefile_path = root / "drivers/Makefile"
     drivers_makefile = drivers_makefile_path.read_text()
     drivers_makefile = drivers_makefile.replace(
-        "obj-$(CONFIG_KSU) += kernelsu/\\n", ""
+        "obj-$(CONFIG_KSU) += kernelsu/\n", ""
     )
     drivers_makefile_path.write_text(drivers_makefile)
 
     defconfig_path = root / "arch/arm64/configs/fleur_defconfig"
     defconfig = defconfig_path.read_text()
-    defconfig = re.sub(r"(?m)^CONFIG_KSU=y\\n", "# CONFIG_KSU is not set\\n", defconfig)
+    defconfig = re.sub(r"(?m)^CONFIG_KSU=y\n", "# CONFIG_KSU is not set\n", defconfig)
     defconfig = defconfig.replace(
         'CONFIG_LOCALVERSION="-hiiragi.rev_2-KSU"',
         'CONFIG_LOCALVERSION="-android11-alucard"',
