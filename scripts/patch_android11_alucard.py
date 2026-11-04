@@ -80,6 +80,42 @@ def main() -> None:
     )
     drivers_makefile_path.write_text(drivers_makefile)
 
+    # Keep KSM disabled in this test tree: memory.c has a reuse_ksm_page()
+    # call but the source revision has no implementation. The call is guarded
+    # by the CONFIG_KSM stub below, so the disabled feature remains inert.
+    ksm_header_path = root / "include/linux/ksm.h"
+    ksm_header = ksm_header_path.read_text()
+    ksm_marker = "#else  /* !CONFIG_KSM */"
+    if "reuse_ksm_page" not in ksm_header:
+        if ksm_header.count(ksm_marker) != 1:
+            raise SystemExit("Alucard patch: KSM disabled-branch insertion point not unique")
+        ksm_stub = """#else  /* !CONFIG_KSM */
+
+static inline bool reuse_ksm_page(struct page *page,
+                                  struct vm_area_struct *vma,
+                                  unsigned long address)
+{
+    return false;
+}
+"""
+        ksm_header = ksm_header.replace(ksm_marker, ksm_stub, 1)
+        ksm_header_path.write_text(ksm_header)
+
+    # The R-OSS snapshot has three ext4_check_dir_entry() call sites with an
+    # extra trailing NULL although the macro accepts seven arguments.
+    ext4_namei_path = root / "fs/ext4/namei.c"
+    ext4_namei = ext4_namei_path.read_text()
+    ext4_fixes = (
+        ("((char *)de) - base, NULL))", "((char *)de) - base))"),
+        ("bh->b_size, 0, NULL) ||", "bh->b_size, 0) ||"),
+        ("bh->b_size, offset, NULL) ||", "bh->b_size, offset) ||"),
+    )
+    for before, after in ext4_fixes:
+        if before not in ext4_namei or ext4_namei.count(before) != 1:
+            raise SystemExit(f"Alucard patch: expected one ext4 compatibility site: {before}")
+        ext4_namei = ext4_namei.replace(before, after, 1)
+    ext4_namei_path.write_text(ext4_namei)
+
     defconfig_path = root / "arch/arm64/configs/fleur_defconfig"
     defconfig = defconfig_path.read_text()
     defconfig = re.sub(r"(?m)^CONFIG_KSU=y\n", "# CONFIG_KSU is not set\n", defconfig)
@@ -87,6 +123,9 @@ def main() -> None:
         'CONFIG_LOCALVERSION="-hiiragi.rev_2-KSU"',
         'CONFIG_LOCALVERSION="-android11-alucard"',
     )
+    defconfig = re.sub(r"(?m)^CONFIG_KSM=.*$", "# CONFIG_KSM is not set", defconfig)
+    if "# CONFIG_KSM is not set" not in defconfig:
+        defconfig += "\n# CONFIG_KSM is not set\n"
     defconfig_path.write_text(defconfig)
     config_line = "CONFIG_CPU_FREQ_GOV_ALUCARD=y"
     if config_line not in defconfig:
@@ -110,6 +149,13 @@ def main() -> None:
         raise SystemExit("Alucard patch: expected two adapted frequency-table lookups")
     if "CONFIG_CPU_FREQ_GOV_ALUCARD=y" not in defconfig:
         raise SystemExit("Alucard patch: defconfig does not enable Alucard")
+    if "CONFIG_KSM=y" in defconfig:
+        raise SystemExit("Alucard patch: KSM must stay disabled in this source snapshot")
+    if "reuse_ksm_page" not in (root / "include/linux/ksm.h").read_text():
+        raise SystemExit("Alucard patch: missing disabled-KSM compatibility stub")
+    if any(before in (root / "fs/ext4/namei.c").read_text()
+           for before, _ in ext4_fixes):
+        raise SystemExit("Alucard patch: ext4 extra-argument mismatch remains")
     if obj_line not in makefile:
         raise SystemExit("Alucard patch: Makefile does not build Alucard")
     if symbol not in kconfig:
