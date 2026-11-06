@@ -56,8 +56,8 @@ def pvtrow(s,name,old,new):
     tail=tail[:m.start()]+m.group(1)+"{ "+", ".join(map(str,new))+" },"+tail[m.end():]
     return s[:a]+pre+tail+s[b:]
 pm=rd(PMIC)
-vp=re.search(r'regulator-name\s*=\s*"vproc3";.*?regulator-max-microvolt\s*=\s*<(\d+)>;',pm,re.S)
-vs=re.search(r'regulator-name\s*=\s*"vsram_proc3";.*?regulator-max-microvolt\s*=\s*<(\d+)>;',pm,re.S)
+vp=re.search(r'regulator-name\s*=\s*"vproc2";.*?regulator-max-microvolt\s*=\s*<(\d+)>;',pm,re.S)
+vs=re.search(r'regulator-name\s*=\s*"vsram_proc2";.*?regulator-max-microvolt\s*=\s*<(\d+)>;',pm,re.S)
 if not vp or not vs or int(vp.group(1))<1156250 or int(vs.group(1))<1256250:
     raise SystemExit("OC3: requested voltage exceeds/misses PMIC regulator declarations")
 d=rd(DTS)
