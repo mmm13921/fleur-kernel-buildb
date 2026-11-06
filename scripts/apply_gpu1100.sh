@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
-SRC_DIR="\${1:?Usage: apply_gpu1100.sh <kernel-source-directory>}"
-python3 - "\$SRC_DIR" <<'PY'
+SRC_DIR="$1"
+if [[ -z "$SRC_DIR" ]]; then echo "Usage: apply_gpu1100.sh <kernel-source-directory>" >&2; exit 2; fi
+python3 - "$SRC_DIR" <<'PY'
 from pathlib import Path
 import re, subprocess, sys
 root = Path(sys.argv[1])
@@ -36,7 +37,7 @@ for name, minimum in (("VGPU_MAX_VOLT", 100000), ("VSRAM_GPU_MAX_VOLT", 110000))
         raise SystemExit(f"GPU1100: {name} below {minimum}")
 if not re.search(r"freq_khz\s*<=\s*POSDIV_2_MAX_FREQ", drv):
     raise SystemExit("GPU1100: POSDIV2 DDS upper-bound check missing")
-if "GPUOP(1100000, 100000, 110000, POSDIV_POWER_2, 625)" not in s:
+if target not in s:
     raise SystemExit("GPU1100: target OPP validation failed")
 p.write_text(s)
 changed = set(subprocess.check_output(["git", "-C", str(root), "diff", "--name-only"], text=True).splitlines())
