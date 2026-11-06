@@ -93,9 +93,9 @@ def doe(x):
 d=editblock(d,"dvfsp: dvfsp@0011bc00","DVFSP node",doe)
 o=rd(OPP)
 o=macro(o,"CPU_DVFS_FREQ0_L_6781T","2050000","2200000","active big CPU frequency")
-o=macro(o,"CPU_DVFS_VOLT0_VPROC3_6781T","111875","115625","active big CPU VPROC")
+o=macro(o,"CPU_DVFS_VOLT0_VPROC2_6781T","111875","115625","active big CPU VPROC")
 o=macro(o,"CPU_DVFS_FREQ0_L_6781","2002000","2200000","fallback big CPU frequency")
-o=macro(o,"CPU_DVFS_VOLT0_VPROC3_6781","110000","115625","fallback big CPU VPROC")
+o=macro(o,"CPU_DVFS_VOLT0_VPROC2_6781","110000","115625","fallback big CPU VPROC")
 v=rd(PVT)
 v=pvtrow(v,"OPP_6781T_Tbl",(2050,99,1,1),(2200,105,1,1))
 v=pvtrow(v,"OPP_6781_Tbl",(2002,96,1,1),(2200,105,1,1))
@@ -113,7 +113,7 @@ for t in ("if (d->change_flag)","d->doe_flag |= BIT(i);","update_pvt_tbl_by_doe(
 for t in ("CONFIG_MTK_TINYSYS_SSPM_SUPPORT=y","CONFIG_MTK_TINYSYS_SSPM_V2=y","CONFIG_THERMAL=y","CONFIG_CPU_THERMAL=y"):
     if t not in cf:raise SystemExit(f"OC3: config missing: {t}")
 if "volt = MIN(volt, MAX_VPROC_VOLT);" not in mc:raise SystemExit("OC3: AP VPROC clamp missing")
-for t in ("CPU_DVFS_FREQ0_L_6781T 2200000","CPU_DVFS_VOLT0_VPROC3_6781T 115625","CPU_DVFS_FREQ0_L_6781 2200000","CPU_DVFS_VOLT0_VPROC3_6781 115625"):
+for t in ("CPU_DVFS_FREQ0_L_6781T 2200000","CPU_DVFS_VOLT0_VPROC2_6781T 115625","CPU_DVFS_FREQ0_L_6781 2200000","CPU_DVFS_VOLT0_VPROC2_6781 115625"):
     if t not in o:raise SystemExit(f"OC3: Linux OPP macro check failed: {t}")
 if v.count("{ 2200, 105, 1, 1 },")<2:raise SystemExit("OC3: both SSPM PVT tables not set to 2200/105")
 if not re.search(r"(?m)^[ \t]*#define[ \t]+MAX_VPROC_VOLT[ \t]+115625\b",h):raise SystemExit("OC3: VPROC ceiling mismatch")
