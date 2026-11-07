@@ -29,8 +29,11 @@ fi
 
 mkdir -p "$(dirname "$SRC_DIR")" "$ARTIFACT_DIR"
 git clone --depth=1 --branch "$SOURCE_REF" "$SOURCE_URL" "$SRC_DIR"
-git -C "$SRC_DIR" submodule sync --recursive
-git -C "$SRC_DIR" submodule update --init --depth=1 --recursive
+# Fleux v5 has a stale Baseband-guard gitlink that is not registered in
+# .gitmodules. Initialize only the declared KernelSU submodule; recursive
+# update would fail on the unregistered Baseband-guard path.
+git -C "$SRC_DIR" submodule sync -- KernelSU
+git -C "$SRC_DIR" submodule update --init --depth=1 -- KernelSU
 
 SOURCE_COMMIT="$(git -C "$SRC_DIR" rev-parse HEAD)"
 if [[ "$SOURCE_REF" == "v5" && "$SOURCE_COMMIT" != "$EXPECTED_V5_COMMIT" ]]; then
