@@ -2,12 +2,21 @@ name: Fleux Scheduler NR1 (baseline DVFS)
 run-name: Fleux sched_nr_latency=1 (${{ github.event_name }})
 
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/build-sched-nr-latency-1.yml'
+      - 'scripts/apply_sched_nr_latency_1.sh'
+      - 'scripts/build_sched_nr_latency_1.sh'
+      - 'scripts/anykernel_sched_nr_latency_1.sh'
+      - 'docs/sched-nr-latency-1-changelog.md'
   workflow_dispatch:
     inputs:
       source_ref:
         description: Fleux source branch or tag
         required: true
-        default: lineage-24.0
+        default: v5
         type: string
 
 permissions:
@@ -19,11 +28,11 @@ concurrency:
 
 jobs:
   build-and-package:
-    name: Build baseline Fleux with sched_nr_latency=1
+    name: Build baseline Fleux v5 with sched_nr_latency=1
     runs-on: ubuntu-24.04
     timeout-minutes: 180
     env:
-      SOURCE_REF: ${{ inputs.source_ref || 'lineage-24.0' }}
+      SOURCE_REF: ${{ inputs.source_ref || 'v5' }}
     steps:
       - name: Check out builder
         uses: actions/checkout@v4
