@@ -49,23 +49,42 @@ else:
         "in sched_proc_update_handler (or one already fixed assignment)"
     )
 
-if not re.search(
-    r"(?m)^\s*static\s+unsigned\s+int\s+sched_nr_latency\s*=\s*1\s*;",
-    source,
-):
+declaration = re.compile(
+    r"(?m)^\s*static\s+unsigned\s+int\s+sched_nr_latency\s*=\s*1\s*;"
+)
+if len(declaration.findall(source)) != 1:
     raise SystemExit("sched_nr_latency patch: declaration audit failed")
 
 if len(fixed_assignment.findall(source)) != 1:
     raise SystemExit("sched_nr_latency patch: fixed sysctl-handler audit failed")
 
-if "nr_running > sched_nr_latency" not in source:
-    raise SystemExit("sched_nr_latency patch: CFS period use-site is missing")
+all_assignments = re.findall(r"\bsched_nr_latency\s*=(?!=)", source)
+if len(all_assignments) != 2:
+    raise SystemExit(
+        "sched_nr_latency patch: unexpected write site; expected only "
+        "the static initializer and sysctl handler assignment"
+    )
 
-if "sched_nr_latency = DIV_ROUND_UP" in source:
+if not re.search(
+    r"if\s*\(\s*unlikely\(\s*nr_running\s*>\s*sched_nr_latency\s*\)\s*\)",
+    source,
+):
+    raise SystemExit("sched_nr_latency patch: CFS __sched_period use-site is missing")
+
+if not re.search(
+    r"__sched_period\s*\(\s*cfs_rq->nr_running\s*\+\s*!se->on_rq\s*\)",
+    source,
+):
+    raise SystemExit("sched_nr_latency patch: sched_slice use-site is missing")
+
+if re.search(r"sched_nr_latency\s*=\s*DIV_ROUND_UP", source):
     raise SystemExit("sched_nr_latency patch: dynamic recomputation remains")
 
 path.write_text(source)
-print("sched_nr_latency source patch applied and audited: fixed value = 1")
+print(
+    "sched_nr_latency source patch applied and audited: "
+    "initial value = 1; sysctl handler value = 1; CFS use-sites retained"
+)
 PY
 
 git -C "$SRC_DIR" diff --check
