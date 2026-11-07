@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-SOURCE_REF="${1:-lineage-24.0}"
+SOURCE_REF="${1:-v5}"
 SOURCE_URL="https://gitlab.com/daliboss/fleux.git"
+EXPECTED_V5_COMMIT="caf4167e60fb81df4d1ac66e83c4e28a0396a01b"
 WORKSPACE="${GITHUB_WORKSPACE:-$PWD}"
 SRC_DIR="${SRC_DIR:-$WORKSPACE/kernel-src}"
 OUT_DIR="${OUT_DIR:-$WORKSPACE/out}"
@@ -31,6 +32,12 @@ git clone --depth=1 --branch "$SOURCE_REF" "$SOURCE_URL" "$SRC_DIR"
 git -C "$SRC_DIR" submodule sync --recursive
 git -C "$SRC_DIR" submodule update --init --depth=1 --recursive
 
+SOURCE_COMMIT="$(git -C "$SRC_DIR" rev-parse HEAD)"
+if [[ "$SOURCE_REF" == "v5" && "$SOURCE_COMMIT" != "$EXPECTED_V5_COMMIT" ]]; then
+  echo "Fleux v5 tag mismatch: expected $EXPECTED_V5_COMMIT, got $SOURCE_COMMIT" >&2
+  exit 3
+fi
+
 bash "$WORKSPACE/scripts/apply_sched_nr_latency_1.sh" "$SRC_DIR"
 git -C "$SRC_DIR" diff --check
 
@@ -44,16 +51,31 @@ assert re.search(
     r"(?m)^\s*static\s+unsigned\s+int\s+sched_nr_latency\s*=\s*1\s*;",
     source,
 ), "sched_nr_latency declaration is not fixed at 1"
-assert len(re.findall(r"(?m)^\s*sched_nr_latency\s*=\s*1\s*;", source)) == 1, (
+
+fixed_handler = re.findall(
+    r"(?m)^\s*sched_nr_latency\s*=\s*1\s*;",
+    source,
+)
+assert len(fixed_handler) == 1, (
     "expected exactly one fixed assignment in the sysctl update handler"
 )
-assert "sched_nr_latency = DIV_ROUND_UP" not in source, (
-    "dynamic sched_nr_latency recalculation remains"
+all_assignments = re.findall(r"\bsched_nr_latency\s*=(?!=)", source)
+assert len(all_assignments) == 2, (
+    "unexpected sched_nr_latency write site; expected declaration + handler only"
 )
-assert "nr_running > sched_nr_latency" in source, (
-    "CFS period calculation no longer references sched_nr_latency"
-)
-print("SOURCE AUDIT PASSED: sched_nr_latency is fixed at 1")
+assert not re.search(
+    r"sched_nr_latency\s*=\s*DIV_ROUND_UP",
+    source,
+), "dynamic sched_nr_latency recalculation remains"
+assert re.search(
+    r"if\s*\(\s*unlikely\(\s*nr_running\s*>\s*sched_nr_latency\s*\)\s*\)",
+    source,
+), "CFS period calculation no longer references sched_nr_latency"
+assert re.search(
+    r"__sched_period\s*\(\s*cfs_rq->nr_running\s*\+\s*!se->on_rq\s*\)",
+    source,
+), "sched_slice no longer uses __sched_period"
+print("SOURCE AUDIT PASSED: sched_nr_latency is fixed at 1; CFS use-sites retained")
 PY
 
 export PATH="$TOOLCHAIN_DIR/bin:$PATH"
@@ -65,11 +87,14 @@ export KBUILD_BUILD_HOST="${KBUILD_BUILD_HOST:-reproducible-runner}"
 make -C "$SRC_DIR" O="$OUT_DIR" fleur_defconfig \
   CC=clang LD=ld.lld LLVM=1 LLVM_IAS=1
 
+# Build the compressed kernel together with the selected MT6781 DTBs.
+# The explicit target is required to create Image.gz-dtb for AnyKernel3.
 make -C "$SRC_DIR" -j"$(nproc)" O="$OUT_DIR" \
   CC=clang LD=ld.lld LLVM=1 LLVM_IAS=1 \
   CLANG_TRIPLE=aarch64-linux-gnu- \
   CROSS_COMPILE=aarch64-linux-gnu- \
-  CROSS_COMPILE_ARM32=arm-linux-gnueabi-
+  CROSS_COMPILE_ARM32=arm-linux-gnueabi- \
+  Image.gz-dtb
 
 IMAGE="$OUT_DIR/arch/arm64/boot/Image.gz-dtb"
 if [[ ! -s "$IMAGE" ]]; then
